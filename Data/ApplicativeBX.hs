@@ -2,7 +2,7 @@
 
 module Data.ApplicativeBX
        ( module Data.ApplicativeBX.Core
-       , sequenceL 
+       , sequenceL, list 
        , new, lift2, liftT
        ) where
 
@@ -38,14 +38,9 @@ sequenceL t = lift (fillL t) $ list (contents t)
                    (\_ v -> if shape t == shape v then
                               contents v
                             else
-                              error "Shape Mitmatch")  
+                              error "Shape Mitmatch")
 
-{-# SPECIALIZE sequenceL :: [L s a] -> L s [a] #-}
-{-# INLINE[2] sequenceL #-}
-
-{-# RULES
-"sequence/list" sequenceL = list 
-  #-}
+{-# SPECIALIZE sequenceL :: [L s a] -> L s [a] #-}              
 
 ----------------------------------------------------------
 liftT :: (Eq (t ()), Traversable t)

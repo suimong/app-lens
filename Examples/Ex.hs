@@ -1,4 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Examples.Ex where
 
@@ -9,7 +10,21 @@ import Data.List (elemIndices, splitAt)
 tailL = unliftT tailH
 
 
-tailH xs = sequenceL (tail xs)
+tailH xs = list (tail xs)
+
+{-
+*Examples.Ex> put tailL "abc" "Ca"
+"aCa"
+*Examples.Ex> get tailL "abc"
+"bc"
+*Examples.Ex> put tailL "abc" "BC"
+"aBC"
+*Examples.Ex> put tailL "abc" "BCd"
+"*** Exception: Data/ApplicativeBX.hs:28:39-50: Non-exhaustive patterns in lambda
+
+*Examples.Ex> put tailL "abc" "B"
+"*** Exception: Data/ApplicativeBX.hs:32:19-37: Non-exhaustive patterns in lambda
+-}
 
 
 unlinesH :: [L s String] -> L s String
@@ -35,6 +50,74 @@ unlinesL = unliftT unlinesH
 *** Exception: Prelude.(!!): index too large
 
 *Examples.Ex> put unlinesL ["banana", "orange", "apple"] "Banana\nOrange\nApple\n\n"
+-}
+
+
+-- This must be indentity-lens
+mustbeID x = lift2 b x unit
+  where b = Lens (\(x,()) -> x)
+                 (\_ x -> (x,()))
+
+{-
+*Examples.Ex> get (unlift mustbeID) "A"
+"A"
+*Examples.Ex> get (unlift mustbeID) 1
+1
+*Examples.Ex> put (unlift mustbeID) 1 2
+2
+*Examples.Ex> put (unlift mustbeID) 1 323
+323
+*Examples.Ex> put (unlift mustbeID) "A" "B"
+"B"
+*Examples.Ex> put (unlift mustbeID) "Aa" "B"
+"B"
+-}
+
+------------------------------------------------------
+
+mapDefault :: a -> Lens a b -> Lens [a] [b]
+mapDefault d l = Lens (map (get l)) (\s v -> go s v)
+  where
+    go ss [] = []
+    go [] vs = go (map (const d) vs) vs
+    go (s:ss) (v:vs) = put l s v : go ss vs
+
+
+liftC :: Eq a => (Lens a b -> Lens c d) ->
+             (forall s. L s a -> L s b) ->
+             (forall s. L s c -> L s d)
+liftC c f = lift (c (unlift f))
+
+
+mapH :: Eq a => a -> (forall s. L s a -> L s b) -> L s [a] -> L s [b]
+mapH d = liftC (mapDefault d)
+
+mapAddL = unlift (mapH (0,0) addL)
+
+addL = lift (Lens (uncurry (+))
+            (\(x,_) v -> (x, v - x)))
+
+mapAddL' = unliftT (list . map addL)       
+
+{-
+*Examples.Ex> get mapAddL [(1,1), (2,2)]
+[2,4]
+*Examples.Ex> put mapAddL [(1,1), (2,2)] [3,5]
+[(1,2),(2,3)]
+*Examples.Ex> put mapAddL [(1,1), (2,2)] [3]
+[(1,2)]
+*Examples.Ex> put mapAddL [(1,1), (2,2)] [3,5,7]
+[(1,2),(2,3),(0,7)]
+
+*Examples.Ex> get mapAddL' [(1,1), (2,2)]
+[2,4]
+*Examples.Ex> put mapAddL' [(1,1), (2,2)] [3,5]
+[(1,2),(2,3)]
+*Examples.Ex> put mapAddL' [(1,1), (2,2)] [3]
+*** Exception: Data/ApplicativeBX.hs:32:19-37: Non-exhaustive patterns in lambda
+
+*Examples.Ex> put mapAddL' [(1,1), (2,2)] [3,5,7]
+*** Exception: Data/ApplicativeBX.hs:28:39-50: Non-exhaustive patterns in lambda
 -}
 
 
