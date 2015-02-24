@@ -120,4 +120,22 @@ mapAddL' = unliftT (list . map addL)
 *** Exception: Data/ApplicativeBX.hs:28:39-50: Non-exhaustive patterns in lambda
 -}
 
+-- toy program for observation 
+good x y = fmap (uncurry pair) $ do 
+  b <- liftO2 (==) x (new 0)
+  return (if b then (x,y) else (x, new 1))
+
+goodL = unliftM2 good   
+
+{-
+*Examples.Ex> get goodL (0,2)
+(0,2)
+*Examples.Ex> put goodL (0,2) (1,2)
+*** Exception: Changing Observation
+*Examples.Ex> put goodL (0,2) (0,5)
+(0,5)
+-}
+
+
+
 

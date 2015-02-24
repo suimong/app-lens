@@ -4,6 +4,7 @@ module Data.ApplicativeBX
        ( module Data.ApplicativeBX.Core
        , sequenceL, list 
        , new, lift2, liftT
+       , liftO, liftO2
        ) where
 
 import Data.ApplicativeBX.Core
@@ -46,3 +47,11 @@ sequenceL t = lift (fillL t) $ list (contents t)
 liftT :: (Eq (t ()), Traversable t)
          => Lens (t a) b -> (forall s. t (L s a) -> L s b)
 liftT l xs = lift l (sequenceL xs)
+
+liftO :: Eq w => (a -> w) -> L s a -> R s w
+liftO p x = observe (lift (Lens p unused) x)
+  where
+    unused s v | v == p s = s
+
+liftO2 :: Eq w => (a -> b -> w) -> L s a -> L s b -> R s w
+liftO2 p x y = liftO (uncurry p) (x `pair` y) 

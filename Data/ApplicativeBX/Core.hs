@@ -9,7 +9,9 @@ module Data.ApplicativeBX.Core
     , unit, pair 
     , lift
     , unlift, unlift2, unliftT
-    , enforce, observe 
+    , R() -- abstract
+    , observe
+    , unliftM, unliftM2, unliftMT
     ) where
     
 import Prelude hiding ((.), id, sequence) 
@@ -65,6 +67,24 @@ instance (Poset a, Eq (t ()), Traversable t) => Poset (t a) where
                 error "No LUB"
                 
 
+-- class Poset t => UnTag t s | t -> s where
+--   tag  :: s -> t
+--   utag :: t -> s
+
+-- instance UnTag (Tag s) s where
+--   tag = O
+--   utag = UnTag
+
+-- instance (UnTag t1 s1, UnTag t2 s2) => UnTag (t1,t2) (s1,s2) where
+--   tag (x,y)  = (tag x, tag y)
+--   utag (x,y) = (utag x, utag y)
+
+-- instance (UnTag t s, Functor f) => UnTag (f t) (f s) where
+--   tag  = fmap tag
+--   utag = fmap utag
+
+  
+
 {- | An abstract type for "updatable" data. 
 -}
 newtype L s a = L { unL :: Poset s => Lens s a }
@@ -97,19 +117,19 @@ unit = L $ Lens (\_ -> ()) (\s () -> s)
 {- | The unlifting function, satisfying @unlift (lift x) = x@. -}
 unlift :: Eq a => (forall s. L s a -> L s b) -> Lens a b
 unlift f = unL (f id') . tag
-  where
-    id' = L $ Lens unTag (const U)
-    tag = Lens O (const unTag)
 
+id' = L $ Lens unTag (const U)
+tag = Lens O (const unTag)
+            
 {- | The unlifting function for binary functions, satisfying
      @unlift2 (lift2 x) = x@ where @lift2 l x y = lift l (pair x y)@  -}
 unlift2 :: (Eq a, Eq b) => (forall s. L s a -> L s b -> L s c) -> Lens (a,b) c
 unlift2 f = unL (f fst' snd') . tag2
-  where
-    fst' = L $ Lens (unTag . fst) (\(_,b) a -> (U a, b))
-    snd' = L $ Lens (unTag . snd) (\(a,_) b -> (a, U b))
 
-    tag2 = Lens (\(a,b) -> (O a, O b)) (\_ (a,b) -> (unTag a, unTag b))
+fst' = L $ Lens (unTag . fst) (\(_,b) a -> (U a, b))
+snd' = L $ Lens (unTag . snd) (\(a,_) b -> (a, U b))
+
+tag2 = Lens (\(a,b) -> (O a, O b)) (\_ (a,b) -> (unTag a, unTag b))
 
 
 unliftT :: (Eq a, Eq (t ()), Traversable t) =>
@@ -118,14 +138,16 @@ unliftT f = Lens (\s -> get (mkLens s) s)
                  (\s -> put (mkLens s) s)
   where
     mkLens s = unL (f (projs (shape s))) . tagT 
-    tagT = Lens (fmap O) (\_ -> fmap unTag)
+
+tagT :: Functor f => Lens (f s) (f (Tag s))
+tagT = Lens (fmap O) (\_ -> fmap unTag)
            
-    projs sh =
-      let n = length (contents sh)
-      in fill sh $ map (proj sh) [0..n-1] 
-    proj sh i = L $
-      Lens (\s -> unTag (contents s !! i))
-           (\s v -> fill sh (update i (U v) (contents s)))
+projs sh =
+  let n = length (contents sh)
+  in fill sh $ map (proj sh) [0..n-1] 
+proj sh i = L $
+            Lens (\s -> unTag (contents s !! i))
+                 (\s v -> fill sh (update i (U v) (contents s)))
 
 update 0 v (_:xs) = v:xs
 update i v (x:xs) = x:update (i-1) v xs 
@@ -157,16 +179,64 @@ observe :: Eq w => L s w -> R s w
 observe l = R $ \s ->  let w = get (unL l) s
                        in (w, \s' -> get (unL l) s' == w)
 
-enforce :: R s (L s a) -> L s a
-enforce m = L $ Lens (\s -> get (mkLens m s) s)
-                     (\s -> put (mkLens m s) s)
+-- enforce :: R s (L s a) -> L s a
+-- enforce m = L $ Lens (\s -> get (mkLens m s) s)
+--                      (\s -> put (mkLens m s) s)
+--   where
+--     mkLens (R m) s =
+--       let (l,p) = m s
+--           put' s v = let s' = put (unL l) s v
+--                      in if p s' then
+--                           s'
+--                         else 
+--                           error "Changing Observation"
+--       in Lens (get (unL l)) put' 
+
+unliftM :: Eq a => (forall s. L s a -> R s (L s b)) -> Lens a b
+unliftM f = Lens (\s -> get (mkLens f s) s)
+                 (\s -> put (mkLens f s) s)
   where
-    mkLens (R m) s =
-      let (l,p) = m s
-          put' s v = let s' = put (unL l) s v
-                     in if p s' then
-                          s'
-                        else 
-                          error "Changing Observation"
-      in Lens (get (unL l)) put' 
-                          
+    mkLens f s =
+      let (l,p) = unR (f id') (O s)
+          l'    = unL l . tag
+          put' s v =
+            let s' = put l' s v
+            in if p (O s') then
+                 s'
+               else
+                 error "Changing Observation"
+      in Lens (get l')  put'
+
+unliftM2 :: (Eq a, Eq b) =>
+            (forall s. L s a -> L s b -> R s (L s c)) -> Lens (a,b) c
+unliftM2 f = Lens (\s -> get (mkLens f s) s)
+                  (\s -> put (mkLens f s) s )
+  where
+    mkLens f s =
+      let (l,p) = unR (f fst' snd') (get tag2 s)
+          l'    = unL l . tag2
+          put' s v =
+            let s' = put l' s v
+            in if p (get tag2 s') then
+                 s'
+               else
+                 error "Changing Observation"
+      in Lens (get l')  put'
+
+
+unliftMT :: (Eq a, Eq (t ()), Traversable t) =>
+            (forall s. t (L s a) -> R s (L s b)) -> Lens (t a) b
+unliftMT f = Lens (\s -> get (mkLens f s) s)
+                  (\s -> put (mkLens f s) s )
+  where
+    mkLens f s =
+      let (l,p) = unR (f (projs (shape s))) (get tagT s)
+          l'    = unL l . tagT
+          put' s v =
+            let s' = put l' s v
+            in if p (get tagT s') then
+                 s'
+               else
+                 error "Changing Observation"
+      in Lens (get l')  put'
+           
