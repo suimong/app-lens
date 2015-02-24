@@ -1,10 +1,17 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
 
+{- |
+This file contains the examples in the paper. 
+-}
+
 module Examples.Ex where
 
 import Data.ApplicativeBX
 import Data.List (elemIndices, splitAt)
+
+
+
 
 -- Explict type declation is needed unless NoMonomorphismRestriction is on. 
 tailL = unliftT tailH
