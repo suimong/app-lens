@@ -17,8 +17,8 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Data.ApplicativeBX, Data.ApplicativeBX.Core, Data.ApplicativeBX.Util, Examples.Ex, Examples.Ex2, Examples.XML
-  -- other-modules:       
+  exposed-modules:     Data.ApplicativeBX
+  other-modules:       Data.ApplicativeBX.Core, Data.ApplicativeBX.Util, Examples.Ex, Examples.Ex2, Examples.XML
   other-extensions:    RankNTypes, FlexibleInstances, FlexibleContexts, UndecidableInstances, IncoherentInstances, NoMonomorphismRestriction, DeriveFunctor, DeriveFoldable, DeriveTraversable
   build-depends:       base >=4.7 && <4.8, mtl >=2.1 && <2.2, containers >=0.5 && <0.6, pretty >=1.1 && <1.2
   -- hs-source-dirs:      

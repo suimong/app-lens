@@ -159,6 +159,7 @@ update i v (x:xs) = x:update (i-1) v xs
 
 ---------------------------------------
 
+-- | An abstract monad used to keep track of observations. 
 newtype R s a = R { unR :: Poset s => s -> (a, s -> Bool) }
 
 instance Functor (R s) where
@@ -174,7 +175,9 @@ instance Applicative (R s) where
   pure  = return
   (<*>) = ap
 
-
+{- |
+A premitive used to define 'liftO' and 'liftO2'. 
+-}
 observe :: Eq w => L s w -> R s w
 observe l = R $ \s ->  let w = get (unL l) s
                        in (w, \s' -> get (unL l) s' == w)
@@ -192,6 +195,7 @@ observe l = R $ \s ->  let w = get (unL l) s
 --                           error "Changing Observation"
 --       in Lens (get (unL l)) put' 
 
+{- | A monadic version of 'unlift' -}
 unliftM :: Eq a => (forall s. L s a -> R s (L s b)) -> Lens a b
 unliftM f = Lens (\s -> get (mkLens f s) s)
                  (\s -> put (mkLens f s) s)
@@ -207,6 +211,7 @@ unliftM f = Lens (\s -> get (mkLens f s) s)
                  error "Changing Observation"
       in Lens (get l')  put'
 
+{- | A monadic version of 'unlift2' -}
 unliftM2 :: (Eq a, Eq b) =>
             (forall s. L s a -> L s b -> R s (L s c)) -> Lens (a,b) c
 unliftM2 f = Lens (\s -> get (mkLens f s) s)
@@ -224,6 +229,7 @@ unliftM2 f = Lens (\s -> get (mkLens f s) s)
       in Lens (get l')  put'
 
 
+{- | A monadic version of 'unliftT' -}
 unliftMT :: (Eq a, Eq (t ()), Traversable t) =>
             (forall s. t (L s a) -> R s (L s b)) -> Lens (t a) b
 unliftMT f = Lens (\s -> get (mkLens f s) s)

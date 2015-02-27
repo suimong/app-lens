@@ -1,12 +1,13 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, 
              FlexibleContexts, NoMonomorphismRestriction, RankNTypes #-}
 
-module Examples.XML where
-
 {- |
 This file contains some XML transformation examples
 from XML Query Use Cases. 
 -}
+
+module Examples.XML where
+
 import Data.ApplicativeBX
 
 import Data.Traversable (Traversable)
