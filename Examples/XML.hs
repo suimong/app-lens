@@ -379,23 +379,21 @@ test_src2 =
 liftShow x = fmap trace $ M.lift $ liftO show x
 
 q5 doc = gather $ 
-         do item    <- (ofLabel (new $ E "news") /> ofLabel (new $ E "news_item")) doc
-            content <- (keep /> ofLabel (new $ E "content")) item
-            s       <- string content
-            guardM  (M.lift $ liftO (\s  -> contains s "Gorilla Corporation") s)
+         do item <- deep (ofLabel (new $ E "news_item")) doc 
+            cont <- string =<< (keep /> ofLabel (new $ E "content")) item
+            guardM  (M.lift $ liftO (\s  -> contains s "Gorilla Corporation") cont)
             title   <- (keep /> ofLabel (new $ E "title") /> keep) item
-            let t = lift unTextL $ label title
             date    <- (keep /> ofLabel (new $ E "date") /> keep) item
+            let t = lift unTextL $ label title
             let d = lift unTextL $ label date 
-            p1      <- ((keep /> ofLabel (new $ E "content") /> ofLabel (new $ E "par")) /! 0) item
-            p       <- string p1
-            let lab = lift catDate (pair t (pair d p))
-            return $ N (new $ E "item_summary") [N lab []]
+            p  <- string =<< (deep (ofLabel (new $ E "par")) /! 0) item 
+            return $ N (new $ E "item_summary")
+               [N (lift catDate (pair t (pair d p))) []]
   where
     unTextL = Lens (\(T t) -> t) (\_ t -> T t)
 
+    string :: Tree (L s Lab) -> ListT (R s) (L s String) 
     string x = M.lift $ string' x
-    string' :: Tree (L s Lab) -> R s (L s String)
     string' (N t xs) =
       do b <- liftO isText t
          (if b then
@@ -412,6 +410,7 @@ q5 doc = gather $
     contains s t = t `isInfixOf` s
 
 
+-- For simplicity, we assume that a title does not contain a string of pattern "\d\d?-\d\d?-\d\d\d\d".
 catDate = Lens (\(t,(d,p)) -> T $ t ++ "." ++ d ++ "." ++ p)
                (\_ (T string)  -> head $ 
                    do (r,"") <- P.readP_to_S parser string
@@ -442,29 +441,6 @@ runTrans f = unliftMT (fmap sequenceL . pick . f)
 
 q5L = unliftMT (\x -> fmap (sequenceL . fmap sequenceL) $ pick $ q5 x)        
 
-
-{-
-Changes:
- * The title of the second item has been chapitalized.
- * The date of the first item has been updated. 
--}
-test_view2 = 
-  [N (E "item_summary")
-   [N (T "Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2015.Today, Gorilla Corporation announced that it will purchase\nYouNameItWeIntegrateIt.com. The shares of\nYouNameItWeIntegrateIt.com dropped $3.00 as a result of this\nannouncement.") []],
-   N (E "item_summary")
-   [N (T "Foobar Corporation is Suing Gorilla Corporation for Patent Infringement.1-20-2000.In surprising developments today, Foobar Corporation\nannounced that it is suing Gorilla Corporation for patent\ninfringement. The patents that were mentioned as part of the\nlawsuit are considered to be the basis of Foobar\nCorporation'sWireless Foo line of products") []]]
-
-{-
-Since the append lens in "string" keeps the length of the first item,
-the change of the paragraph would result in counter intutive result.
--}
-test_view2' = 
-  [N (E "item_summary")
-   [N (T "Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2015.Today, Gorilla Corporation announced that it will purchase\nYouNameItWeIntegrateIt.com. The shares of\nYouNameItWeIntegrateIt.com dropped $3.00 as a result of this\nannouncement. THIS INSERTION WORKS OK.") []],
-   N (E "item_summary")
-   [N (T "Foobar Corporation is Suing Gorilla Corporation for Patent Infringement.1-20-2000.In surprising developments today, Foobar Corporation\nannounced that it is suing Gorilla Corporation for patent\ninfringement. THIS INSERTION CAUSES A COUNTER-INTUIVE RESULT. The patents that were mentioned as part of the\nlawsuit are considered to be the basis of Foobar\nCorporation'sWireless Foo line of products") []]]
-
-  
 {-
 *Examples.XML> putStr $ unlines $ map show $ map pretty $  get q5L test_src2
 <item_summary>
@@ -480,4 +456,240 @@ infringement. The patents that were mentioned as part of the
 lawsuit are considered to be the basis of Foobar
 Corporation'sWireless Foo line of products
 </item_summary>
+-}
+
+
+{-
+Changes:
+ * The title of the second item has been chapitalized.
+ * The date of the first item has been updated. 
+-}
+test_view2 = 
+  [N (E "item_summary")
+   [N (T "Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2015.Today, Gorilla Corporation announced that it will purchase\nYouNameItWeIntegrateIt.com. The shares of\nYouNameItWeIntegrateIt.com dropped $3.00 as a result of this\nannouncement.") []],
+   N (E "item_summary")
+   [N (T "Foobar Corporation is Suing Gorilla Corporation for Patent Infringement.1-20-2000.In surprising developments today, Foobar Corporation\nannounced that it is suing Gorilla Corporation for patent\ninfringement. The patents that were mentioned as part of the\nlawsuit are considered to be the basis of Foobar\nCorporation'sWireless Foo line of products") []]]
+
+{-
+*Examples.XML> pretty $ put q5L test_src2 test_view2
+<news>
+    <news_item>
+        <title>
+            Gorilla Corporation acquires YouNameItWeIntegrateIt.com
+        </title>
+        <content>
+            <par>
+                Today, Gorilla Corporation announced that it will purchase
+YouNameItWeIntegrateIt.com. The shares of
+YouNameItWeIntegrateIt.com dropped $3.00 as a result of this
+announcement.
+            </par>
+            <par>As a result of this acquisition, the CEO ...</par>
+            <par>
+                YouNameItWeIntegrateIt.com is a leading systems integrator
+            </par>
+        </content>
+        <date>1-20-2015</date>
+        <author>Mark Davis</author>
+        <news_agent>News Online</news_agent>
+    </news_item>
+    <news_item>
+        <title>
+            Foobar Corporation releases its new line of Foo products today
+        </title>
+        <content>
+            <par>
+                Foobar Corporation releases the 20.9 version of its Foo
+products.  The new version of Foo products solve known
+performance problems which existed in 20.8 line and
+increases the speed of Foo based products tenfold. It also
+allows wireless clients to be connected to the Foobar
+servers.
+            </par>
+            <par>The President of Foobar Corporation announced ...</par>
+            <figure>
+                <title>
+                    Presidents of Foobar Corporation and TheAppCompany Inc. Shake Hands
+                </title>
+                <image source="handshake.jpg"></image>
+            </figure>
+        </content>
+        <date>1-20-2000</date>
+        <news_agent>Foovar Corporation</news_agent>
+    </news_item>
+    <news_item>
+        <title>
+            Foobar Corporation is Suing Gorilla Corporation for Patent Infringement
+        </title>
+        <content>
+            <par>
+                In surprising developments today, Foobar Corporation
+announced that it is suing Gorilla Corporation for patent
+infringement. The patents that were mentioned as part of the
+lawsuit are considered to be the basis of Foobar
+Corporation's
+                <quote>Wireless Foo</quote>
+                 line of products
+            </par>
+            <par>
+                The tension between Foobar and Gorilla Corporations has ...
+            </par>
+        </content>
+        <date>1-20-2000</date>
+        <news_agent>Reliable News Corporation</news_agent>
+    </news_item>
+</news>
+-}
+
+
+
+{-
+Since the append lens in "string" keeps the length of the first item,
+the change of the paragraph would result in counter intutive result.
+-}
+test_view2' = 
+  [N (E "item_summary")
+   [N (T "Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2015.Today, Gorilla Corporation announced that it will purchase\nYouNameItWeIntegrateIt.com. The shares of\nYouNameItWeIntegrateIt.com dropped $3.00 as a result of this\nannouncement. THIS INSERTION WORKS OK.") []],
+   N (E "item_summary")
+   [N (T "Foobar Corporation is Suing Gorilla Corporation for Patent Infringement.1-20-2000.In surprising developments today, Foobar Corporation\nannounced that it is suing Gorilla Corporation for patent\ninfringement. THIS INSERTION CAUSES A COUNTER-INTUIVE RESULT. The patents that were mentioned as part of the\nlawsuit are considered to be the basis of Foobar\nCorporation'sWireless Foo line of products") []]]
+
+
+
+{-
+*Examples.XML> pretty $ put q5L test_src2 test_view2
+<news>
+    <news_item>
+        <title>
+            Gorilla Corporation acquires YouNameItWeIntegrateIt.com
+        </title>
+        <content>
+            <par>
+                Today, Gorilla Corporation announced that it will purchase
+YouNameItWeIntegrateIt.com. The shares of
+YouNameItWeIntegrateIt.com dropped $3.00 as a result of this
+announcement.
+            </par>
+            <par>As a result of this acquisition, the CEO ...</par>
+            <par>
+                YouNameItWeIntegrateIt.com is a leading systems integrator
+            </par>
+        </content>
+        <date>1-20-2015</date>
+        <author>Mark Davis</author>
+        <news_agent>News Online</news_agent>
+    </news_item>
+    <news_item>
+        <title>
+            Foobar Corporation releases its new line of Foo products today
+        </title>
+        <content>
+            <par>
+                Foobar Corporation releases the 20.9 version of its Foo
+products.  The new version of Foo products solve known
+performance problems which existed in 20.8 line and
+increases the speed of Foo based products tenfold. It also
+allows wireless clients to be connected to the Foobar
+servers.
+            </par>
+            <par>The President of Foobar Corporation announced ...</par>
+            <figure>
+                <title>
+                    Presidents of Foobar Corporation and TheAppCompany Inc. Shake Hands
+                </title>
+                <image source="handshake.jpg"></image>
+            </figure>
+        </content>
+        <date>1-20-2000</date>
+        <news_agent>Foovar Corporation</news_agent>
+    </news_item>
+    <news_item>
+        <title>
+            Foobar Corporation is Suing Gorilla Corporation for Patent Infringement
+        </title>
+        <content>
+            <par>
+                In surprising developments today, Foobar Corporation
+announced that it is suing Gorilla Corporation for patent
+infringement. The patents that were mentioned as part of the
+lawsuit are considered to be the basis of Foobar
+Corporation's
+                <quote>Wireless Foo</quote>
+                 line of products
+            </par>
+            <par>
+                The tension between Foobar and Gorilla Corporations has ...
+            </par>
+        </content>
+        <date>1-20-2000</date>
+        <news_agent>Reliable News Corporation</news_agent>
+    </news_item>
+</news>
+*Examples.XML> pretty $ put q5L test_src2 test_view2'
+<news>
+    <news_item>
+        <title>
+            Gorilla Corporation acquires YouNameItWeIntegrateIt.com
+        </title>
+        <content>
+            <par>
+                Today, Gorilla Corporation announced that it will purchase
+YouNameItWeIntegrateIt.com. The shares of
+YouNameItWeIntegrateIt.com dropped $3.00 as a result of this
+announcement. THIS INSERTION WORKS OK.
+            </par>
+            <par>As a result of this acquisition, the CEO ...</par>
+            <par>
+                YouNameItWeIntegrateIt.com is a leading systems integrator
+            </par>
+        </content>
+        <date>1-20-2015</date>
+        <author>Mark Davis</author>
+        <news_agent>News Online</news_agent>
+    </news_item>
+    <news_item>
+        <title>
+            Foobar Corporation releases its new line of Foo products today
+        </title>
+        <content>
+            <par>
+                Foobar Corporation releases the 20.9 version of its Foo
+products.  The new version of Foo products solve known
+performance problems which existed in 20.8 line and
+increases the speed of Foo based products tenfold. It also
+allows wireless clients to be connected to the Foobar
+servers.
+            </par>
+            <par>The President of Foobar Corporation announced ...</par>
+            <figure>
+                <title>
+                    Presidents of Foobar Corporation and TheAppCompany Inc. Shake Hands
+                </title>
+                <image source="handshake.jpg"></image>
+            </figure>
+        </content>
+        <date>1-20-2000</date>
+        <news_agent>Foovar Corporation</news_agent>
+    </news_item>
+    <news_item>
+        <title>
+            Foobar Corporation is Suing Gorilla Corporation for Patent Infringement
+        </title>
+        <content>
+            <par>
+                In surprising developments today, Foobar Corporation
+announced that it is suing Gorilla Corporation for patent
+infringement. THIS INSERTION CAUSES A COUNTER-INTUIVE RESULT. The patents that were mentioned as part of the
+lawsuit are co
+                <quote>nsidered to </quote>
+                be the basis of Foobar
+Corporation'sWireless Foo line of products
+            </par>
+            <par>
+                The tension between Foobar and Gorilla Corporations has ...
+            </par>
+        </content>
+        <date>1-20-2000</date>
+        <news_agent>Reliable News Corporation</news_agent>
+    </news_item>
+</news>
 -}
