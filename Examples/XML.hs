@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable, 
-             FlexibleContexts, NoMonomorphismRestriction #-}
+             FlexibleContexts, NoMonomorphismRestriction, RankNTypes #-}
 
 module Examples.XML where
 
@@ -16,13 +16,18 @@ import qualified Data.Foldable as F
 
 import Data.List 
 import Data.Function (on)
+import Data.Char     (isNumber)
 
 import Control.Monad
-import Control.Monad.List
+import Control.Monad.List hiding (lift)
 import qualified Control.Monad.Trans as M
+import Control.Applicative
 
 import Text.PrettyPrint.HughesPJ
 
+import qualified Text.ParserCombinators.ReadP as P
+
+import Debug.Trace
 
 data Tree a = N a [Tree a] -- polymorphic tree type
             deriving (Show, Eq, Ord, Functor, Foldable, Traversable)
@@ -171,6 +176,11 @@ txt  = new . T
 
 f /> g = f >=> children >=> g 
 
+
+f /! n = \xs -> do { rs <- gather $ f xs
+                   ; return $ rs !! n }
+
+
 keep :: BFilter s a
 keep = return 
 
@@ -304,4 +314,170 @@ test_view_q1'
 -}
 
 
+test_src2 =
+  news [
+    news_item [
+       title [t "Gorilla Corporation acquires YouNameItWeIntegrateIt.com"],
+       content [
+         par [t $ 
+                "Today, Gorilla Corporation announced that it will purchase\n"
+             ++ "YouNameItWeIntegrateIt.com. The shares of\n" 
+             ++ "YouNameItWeIntegrateIt.com dropped $3.00 as a result of this\n"
+             ++ "announcement."
+             ], 
+         par [t $ "As a result of this acquisition, the CEO ..."],
+         par [t $ "YouNameItWeIntegrateIt.com is a leading systems integrator"]
+         ],
+       date [t "1-20-2000"], 
+       author [t "Mark Davis"],
+       news_agent [t "News Online"]],
 
+    news_item [
+      title [t "Foobar Corporation releases its new line of Foo products today"],
+      content [
+        par [t $ "Foobar Corporation releases the 20.9 version of its Foo\n"
+                 ++ "products.  The new version of Foo products solve known\n" 
+                 ++ "performance problems which existed in 20.8 line and\n"
+                 ++ "increases the speed of Foo based products tenfold. It also\n"
+                 ++ "allows wireless clients to be connected to the Foobar\n"
+                 ++ "servers."],
+        par [t $ "The President of Foobar Corporation announced ..."], 
+        figure [
+          title [t "Presidents of Foobar Corporation and TheAppCompany Inc. Shake Hands"],
+          image "handshake.jpg"
+          ]],
+      date [t "1-20-2000"],
+      news_agent [t "Foovar Corporation"]],
+    
+    news_item [
+      title [t "Foobar Corporation is suing Gorilla Corporation for patent infringement"],
+      content [
+        par [t ("In surprising developments today, Foobar Corporation\n"
+                ++ "announced that it is suing Gorilla Corporation for patent\n"
+                ++ "infringement. The patents that were mentioned as part of the\n"
+                ++ "lawsuit are considered to be the basis of Foobar\n"
+                ++ "Corporation's"),
+             quote [t "Wireless Foo"],
+             t " line of products"],
+        par [t "The tension between Foobar and Gorilla Corporations has ..."]],
+      date [t "1-20-2000"],
+      news_agent [t "Reliable News Corporation"]]]
+  where
+      t x        = N (T x) []
+      news       = N (E "news") 
+      news_item  = N (E "news_item")
+      content    = N (E "content")
+      title      = N (E "title")
+      par        = N (E "par")
+      date       = N (E "date")
+      news_agent = N (E "news_agent")
+      quote      = N (E "quote")
+      figure     = N (E "figure")
+      image x    = N (E "image") [N (A "source") [N (T x) []]]
+      author     = N (E "author")
+      
+liftShow x = fmap trace $ M.lift $ liftO show x
+
+q5 doc = gather $ 
+         do item    <- (ofLabel (new $ E "news") /> ofLabel (new $ E "news_item")) doc
+            content <- (keep /> ofLabel (new $ E "content")) item
+            s       <- string content
+            guardM  (M.lift $ liftO (\s  -> contains s "Gorilla Corporation") s)
+            title   <- (keep /> ofLabel (new $ E "title") /> keep) item
+            let t = lift unTextL $ label title
+            date    <- (keep /> ofLabel (new $ E "date") /> keep) item
+            let d = lift unTextL $ label date 
+            p1      <- ((keep /> ofLabel (new $ E "content") /> ofLabel (new $ E "par")) /! 0) item
+            p       <- string p1
+            let lab = lift catDate (pair t (pair d p))
+            return $ N (new $ E "item_summary") [N lab []]
+  where
+    unTextL = Lens (\(T t) -> t) (\_ t -> T t)
+
+    string x = M.lift $ string' x
+    string' :: Tree (L s Lab) -> R s (L s String)
+    string' (N t xs) =
+      do b <- liftO isText t
+         (if b then
+           return $ lift unTextL t
+          else 
+           fmap (foldl (lift2 appendL) (new "")) $ (mapM string' xs))
+      where
+        isText (T x) = True
+        isText _     = False 
+
+        appendL = Lens (uncurry (++))
+                       (\(a,b) s -> let l = length a
+                                    in (take l s, drop l s))
+    contains s t = t `isInfixOf` s
+
+
+catDate = Lens (\(t,(d,p)) -> T $ t ++ "." ++ d ++ "." ++ p)
+               (\_ (T string)  -> head $ 
+                   do (r,"") <- P.readP_to_S parser string
+                      return r)
+
+      where
+        parser = (\t d p -> (t,(d,p))) <$> titleP <*> dateP <*> paraP
+        titleP = many P.get
+        paraP  = many P.get
+        dateP  = do P.string "."
+                    m <- monthP
+                    P.string "-"
+                    d <- dayP
+                    P.string "-"
+                    y <- yearP
+                    P.string "."
+                    return $ m ++ "-" ++ d ++ "-" ++ y 
+
+        dayP   = P.count 1 numP P.+++
+                 P.count 2 numP
+        monthP = P.count 1 numP P.+++ P.count 2 numP
+        yearP  = P.count 4 numP
+        numP   = P.satisfy isNumber 
+            
+
+runTrans :: (forall s. Tree (L s Lab) -> ListT (R s) (Tree (L s Lab))) -> Lens (Tree Lab) (Tree Lab)
+runTrans f = unliftMT (fmap sequenceL . pick . f)
+
+q5L = unliftMT (\x -> fmap (sequenceL . fmap sequenceL) $ pick $ q5 x)        
+
+
+{-
+Changes:
+ * The title of the second item has been chapitalized.
+ * The date of the first item has been updated. 
+-}
+test_view2 = 
+  [N (E "item_summary")
+   [N (T "Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2015.Today, Gorilla Corporation announced that it will purchase\nYouNameItWeIntegrateIt.com. The shares of\nYouNameItWeIntegrateIt.com dropped $3.00 as a result of this\nannouncement.") []],
+   N (E "item_summary")
+   [N (T "Foobar Corporation is Suing Gorilla Corporation for Patent Infringement.1-20-2000.In surprising developments today, Foobar Corporation\nannounced that it is suing Gorilla Corporation for patent\ninfringement. The patents that were mentioned as part of the\nlawsuit are considered to be the basis of Foobar\nCorporation'sWireless Foo line of products") []]]
+
+{-
+Since the append lens in "string" keeps the length of the first item,
+the change of the paragraph would result in counter intutive result.
+-}
+test_view2' = 
+  [N (E "item_summary")
+   [N (T "Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2015.Today, Gorilla Corporation announced that it will purchase\nYouNameItWeIntegrateIt.com. The shares of\nYouNameItWeIntegrateIt.com dropped $3.00 as a result of this\nannouncement. THIS INSERTION WORKS OK.") []],
+   N (E "item_summary")
+   [N (T "Foobar Corporation is Suing Gorilla Corporation for Patent Infringement.1-20-2000.In surprising developments today, Foobar Corporation\nannounced that it is suing Gorilla Corporation for patent\ninfringement. THIS INSERTION CAUSES A COUNTER-INTUIVE RESULT. The patents that were mentioned as part of the\nlawsuit are considered to be the basis of Foobar\nCorporation'sWireless Foo line of products") []]]
+
+  
+{-
+*Examples.XML> putStr $ unlines $ map show $ map pretty $  get q5L test_src2
+<item_summary>
+    Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2000.Today, Gorilla Corporation announced that it will purchase
+YouNameItWeIntegrateIt.com. The shares of
+YouNameItWeIntegrateIt.com dropped $3.00 as a result of this
+announcement.
+</item_summary>
+<item_summary>
+    Foobar Corporation is suing Gorilla Corporation for patent infringement.1-20-2000.In surprising developments today, Foobar Corporation
+announced that it is suing Gorilla Corporation for patent
+infringement. The patents that were mentioned as part of the
+lawsuit are considered to be the basis of Foobar
+Corporation'sWireless Foo line of products
+</item_summary>
+-}
