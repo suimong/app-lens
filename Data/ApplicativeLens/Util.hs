@@ -1,4 +1,4 @@
-module Data.ApplicativeBX.Util where
+module Data.ApplicativeLens.Util where
 
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as T

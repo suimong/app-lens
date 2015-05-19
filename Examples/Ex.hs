@@ -1,18 +1,15 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 {- |
-This file contains the examples in the paper. 
+This file contains the examples in the paper,
+except the lambda-expression evaluator example, which is "Evalulator.hs".
 -}
 
 module Examples.Ex where
 
-import Data.ApplicativeBX
+import Data.ApplicativeLens
 import Data.List (elemIndices, splitAt)
-
-import Data.Traversable (Traversable)
-import Data.Foldable    (Foldable) 
 
 
 -- Explict type declation is needed unless NoMonomorphismRestriction is on. 
@@ -42,7 +39,7 @@ unlinesH (x:xs) = catLineH x (unlinesH xs)
   where catLineH = lift2 catLineL
 
 catLineL =
-  Lens (\(x,y) -> (x ++ "\n" ++ y))
+  lens (\(x,y) -> (x ++ "\n" ++ y))
        (\ (x,y) v -> let n = length (filter (== '\n') x)
                          i = elemIndices '\n' v !! n 
                          (x',y') = splitAt i v 
@@ -64,7 +61,7 @@ unlinesL = unliftT unlinesH
 
 -- This must be indentity-lens
 mustbeID x = lift2 b x unit
-  where b = Lens (\(x,()) -> x)
+  where b = lens (\(x,()) -> x)
                  (\_ x -> (x,()))
 
 {-
@@ -85,7 +82,7 @@ mustbeID x = lift2 b x unit
 ------------------------------------------------------
 
 mapDefault :: a -> Lens a b -> Lens [a] [b]
-mapDefault d l = Lens (map (get l)) (\s v -> go s v)
+mapDefault d l = lens (map (get l)) (\s v -> go s v)
   where
     go ss [] = []
     go [] vs = go (map (const d) vs) vs
@@ -103,7 +100,7 @@ mapH d = liftC (mapDefault d)
 
 mapAddL = unlift (mapH (0,0) addL)
 
-addL = lift (Lens (uncurry (+))
+addL = lift (lens (uncurry (+))
             (\(x,_) v -> (x, v - x)))
 
 mapAddL' = unliftT (list . map addL)       
@@ -145,59 +142,6 @@ goodL = unliftM2 good
 (0,5)
 -}
 
-data Exp = ENum Integer
-         | EInc Exp 
-         | EFun String Exp 
-         | EApp Exp Exp 
-         | EVar String
-           deriving (Eq, Show)
-
-data Val a = VNum a 
-           | VFun String Exp (Env a)
-             deriving (Eq, Functor, Foldable, Traversable, Show) 
-
-data Env a = Env [(String, Val a)] deriving (Eq, Functor, Foldable, Traversable, Show) 
-
-lkup x (Env env) = case lookup x env of
-                    Just v -> v
-                    Nothing -> error $ "Undefined variable: " ++ x
-xtnd (x,e) (Env env) = Env $ (x,e):env
-
-incL = Lens (+1) (\_ v -> v - 1)
-
-eval :: Exp -> Env (L s Integer) -> Val (L s Integer)
-eval (ENum n) env = VNum (new n)
-eval (EInc e) env =
-  let VNum n = eval e env
-  in VNum (lift incL n)
-eval (EFun x e) env =
-  VFun x e env
-eval (EApp e1 e2) env =
-  let VFun x e env' = eval e1 env
-      v2 = eval e2 env
-  in eval e (xtnd (x,v2) env')
-eval (EVar x) env = lkup x env
-
-infixl 9 @@ -- @@ is left associative
-(@@) = EApp
-
-expr = twice @@ twice @@ twice @@ twice @@ inc @@ x 
-    where
-      twice = EFun "f" $ EFun "x" $
-                EVar "f"@@ (EVar "f" @@ EVar "x")
-      inc   = EFun "x" (EInc (EVar "x"))
-      x     = EVar "x"
-
-evalL e = unliftT (\env -> sequenceL $ eval e env)
-
-env0 = Env [("x", VNum 3)]
-
-{-
-*Examples.Ex> get (evalL expr) env0
-VNum 65539
-*Examples.Ex> put (evalL expr) env0 (VNum 65536)
-Env [("x",VNum 0)]
--}
 
 
 
