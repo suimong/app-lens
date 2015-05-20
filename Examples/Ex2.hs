@@ -8,7 +8,7 @@ This file contains some additional examples.
 
 module Examples.Ex2 where
 
-import Data.ApplicativeBX
+import Data.ApplicativeLens
 import Data.List (elemIndices, splitAt)
 
 import Data.Traversable (Traversable)

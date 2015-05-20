@@ -2,14 +2,14 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
-module Example.Bench where
+-- module Examples.Bench where
 
 import Data.ApplicativeLens
 import Examples.Evaluator 
 
 import Control.DeepSeq
 
-import Criterion.Main
+-- import Criterion.Main
 
 instance NFData a => NFData (Env a) where
   rnf (Env xs) = rnf xs
@@ -26,10 +26,36 @@ instance NFData Exp where
   rnf (EVar e)     = rnf e
 
 
+expr1 = twice @@ twice @@ (twice @@ twice @@ twice @@ (twice @@ twice @@ twice @@ twice @@ inc)) @@ x 
+    where
+      twice = EFun "f" $ EFun "x" $
+                EVar "f"@@ (EVar "f" @@ EVar "x")
+      inc   = EFun "x" (EInc (EVar "x"))
+      x     = EVar "x"
+
+
+test n = unlift (\x -> iterate (lift incL) x !! n)
+test2 = unliftT (\(x:xs) -> foldl (lift2 addL) x xs)
+  where
+    addL :: Lens (Int, Int) Int 
+    addL = lens' $ \(a,b) -> (a + b, \v -> (v - b, b))
+    
+
+-- main = do print $ (put (evalL expr1) env0) (VNum 0)
+--           print $ rnf $ (put (evalL expr1) (envn 1000)) (VNum 0)
+
+main = do print $ put (test 10000000) 0 0
+
+-- main = do print $ let xs = put test2 [0..10000] 0
+--                   in xs `deepseq` take 10 xs
+
+
+{-
 main = defaultMain [
   bgroup "evalL" [ bench "E0"  $ nf (put (evalL expr) env0)      (VNum 65536)
-                 , bench "E10" $ nf (put (evalL expr) (envn 10)) (VNum 65536)
-                 , bench "E20" $ nf (put (evalL expr) (envn 20)) (VNum 65536)
-                 , bench "E30" $ nf (put (evalL expr) (envn 30)) (VNum 65536)
+                 , bench "E1000" $ nf (put (evalL expr) (envn 1000)) (VNum 65536)
+                 , bench "E2000" $ nf (put (evalL expr) (envn 2000)) (VNum 65536)
+                 , bench "E3000" $ nf (put (evalL expr) (envn 3000)) (VNum 65536)
      ]
   ]
+-}

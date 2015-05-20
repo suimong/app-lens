@@ -69,6 +69,7 @@ instance (Poset a, Poset b) => Poset (a,b) where
   lub (a,b) (a',b') = (lub a a', lub b b')
 
 instance (Poset a, Eq (t ()), Traversable t) => Poset (t a) where
+  {-# SPECIALIZE lub :: Poset a => [a] -> [a] -> [a] #-}
   lub t1 t2 = if shape t1 == shape t2 then
                 fill t1 (zipWith lub (contents t1) (contents t2))
               else
@@ -79,11 +80,13 @@ data Diff t a = Diff (t ())              -- ^ Shape of the data -- Assumption: t
                      (IM.IntMap a)       -- ^ Original mapping from indices to values 
                      (IM.IntMap (Tag a)) -- ^ Updated mapping 
 
+{-# SPECIALIZE toDiff :: [a] -> Diff [] a #-}
 toDiff :: Traversable t => t a -> Diff t a
 toDiff s = let om = IM.fromAscList $ zip [0..] (contents s)
            in Diff (shape s) om (IM.empty)
 
 
+{-# SPECIALIZE fromDiff :: Diff [] a -> [a] #-}
 fromDiff :: Traversable t => Diff t a -> t a
 fromDiff (Diff sh om um) =
   let cs = map (\i -> case IM.lookup i um of
@@ -110,9 +113,13 @@ category of lenses to the category of sets and functions.
 lift :: Lens a b -> (forall s. L s a -> L s b)
 lift l (L x) = L (l <<< x)
 
+{-# INLINABLE lift #-}
+
 {- | A paring function of @L s a@-typed values. -}
 pair :: L s a -> L s b -> L s (a,b) 
 pair (L x) (L y) = L ((x *** y) <<< dup)
+
+{-# INLINABLE pair #-}
 
 -- | An alternative notation. 
 infixr 5 >*<
@@ -226,6 +233,7 @@ observe :: Eq w => L s w -> R s w
 observe l = R $ \s ->  let w = get (unL l) s
                        in (w, \s' -> get (unL l) s' == w)
 
+{-# INLINABLE observe #-}
 
 {- | A monadic version of 'unlift' -}
 unliftM :: Eq a => (forall s. L s a -> R s (L s b)) -> Lens a b
@@ -277,5 +285,4 @@ unliftMT f = lens' $ \s -> viewrefl (makeLens f s) s
                  throw ChangedObservationException
       in lens (get l')  put'
            
-
 

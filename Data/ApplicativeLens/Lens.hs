@@ -30,12 +30,14 @@ lens' h = Lens h
 {-# INLINABLE lens' #-}
 
 viewrefl = runLens 
+{-# INLINABLE viewrefl #-}
 
 (<<<) :: Lens b c -> Lens a b -> Lens a c 
 y <<< x = Lens $ \s ->
                   let (v1,r1) = runLens x s
                       (v2,r2) = runLens y v1
                   in (v2, r1 . r2)
+{-# INLINABLE (<<<) #-}
 
 (***) :: Lens a s -> Lens b t -> Lens (a,b) (s,t)
 x *** y = Lens $ \(a,b) ->
@@ -43,4 +45,5 @@ x *** y = Lens $ \(a,b) ->
                       (vb,rb) = runLens y b
                   in ((va,vb), \(va',vb') -> (ra va', rb vb'))
 
+{-# INLINABLE (***) #-}
 

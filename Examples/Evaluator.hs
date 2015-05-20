@@ -20,14 +20,15 @@ data Val a = VNum a
            | VFun String Exp (Env a)
              deriving (Eq, Functor, Foldable, Traversable, Show) 
 
-data Env a = Env [(String, Val a)] deriving (Eq, Functor, Foldable, Traversable, Show) 
+newtype Env a = Env [(String, Val a)]
+              deriving (Eq, Functor, Foldable, Traversable, Show) 
 
 lkup x (Env env) = case lookup x env of
                     Just v -> v
                     Nothing -> error $ "Undefined variable: " ++ x
 xtnd (x,e) (Env env) = Env $ (x,e):env
 
-incL = lens (+1) (\_ v -> v - 1)
+incL = lens' $ \s -> (s + 1, \v -> v - 1)
 
 eval :: Exp -> Env (L s Integer) -> Val (L s Integer)
 eval (ENum n) env = VNum (new n)
