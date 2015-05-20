@@ -5,7 +5,7 @@
 -- module Examples.Bench where
 
 import Data.ApplicativeLens
-import Examples.Evaluator 
+import Examples.Evaluator hiding (incL)
 
 import Control.DeepSeq
 
@@ -35,6 +35,11 @@ expr1 = twice @@ twice @@ (twice @@ twice @@ twice @@ (twice @@ twice @@ twice @
 
 
 test n = unlift (\x -> iterate (lift incL) x !! n)
+
+
+incL :: Lens Integer Integer
+incL = lens' $ \s -> (s + 1, (\v -> v - 1))
+
 test2 = unliftT (\(x:xs) -> foldl (lift2 addL) x xs)
   where
     addL :: Lens (Int, Int) Int 
@@ -44,7 +49,7 @@ test2 = unliftT (\(x:xs) -> foldl (lift2 addL) x xs)
 -- main = do print $ (put (evalL expr1) env0) (VNum 0)
 --           print $ rnf $ (put (evalL expr1) (envn 1000)) (VNum 0)
 
-main = do print $ put (test 10000000) 0 0
+-- main = do print $ put (test 10000000) 0 0
 
 -- main = do print $ let xs = put test2 [0..10000] 0
 --                   in xs `deepseq` take 10 xs

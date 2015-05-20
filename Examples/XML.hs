@@ -391,7 +391,7 @@ q5 doc = gather $
             return $ N (new $ E "item_summary")
                [N (lift catDate (pair t (pair d p))) []]
   where
-    unTextL = Lens (\(T t) -> t) (\_ t -> T t)
+    unTextL = lens (\(T t) -> t) (\_ t -> T t)
 
     string :: Tree (L s Lab) -> ListT (R s) (L s String) 
     string x = M.lift $ string' x
@@ -405,14 +405,14 @@ q5 doc = gather $
         isText (T x) = True
         isText _     = False 
 
-        appendL = Lens (uncurry (++))
+        appendL = lens (uncurry (++))
                        (\(a,b) s -> let l = length a
                                     in (take l s, drop l s))
     contains s t = t `isInfixOf` s
 
 
 -- For simplicity, we assume that a title does not contain a string of pattern "\d\d?-\d\d?-\d\d\d\d".
-catDate = Lens (\(t,(d,p)) -> T $ t ++ "." ++ d ++ "." ++ p)
+catDate = lens (\(t,(d,p)) -> T $ t ++ "." ++ d ++ "." ++ p)
                (\_ (T string)  -> head $ 
                    do (r,"") <- P.readP_to_S parser string
                       return r)

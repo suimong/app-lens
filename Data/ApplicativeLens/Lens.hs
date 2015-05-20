@@ -2,48 +2,53 @@
 
 module Data.ApplicativeLens.Lens where
 
+data StrictPair a b = StrictPair !a !b 
+
+fstS (StrictPair a _) = a
+sndS (StrictPair _ b) = b
+
 {- |
 A variant of conventional representation. 
 -}
-newtype Lens s v = Lens { runLens :: s -> (v, v -> s) }
+newtype Lens s v = Lens { runLens :: s -> StrictPair v (v -> s) }
 
 get :: Lens s v -> s -> v
-get lens = fst . runLens lens
+get lens = fstS . runLens lens
 {-# INLINABLE get #-}
 
 put :: Lens s v -> s -> v -> s
-put lens = snd . runLens lens
+put lens = sndS . runLens lens
 {-# INLINABLE put #-}
 
 modify :: Lens s v -> (v -> v) -> s -> s
 modify lens f s =
-  let (v, r) = runLens lens s
+  let StrictPair v r = runLens lens s
   in r (f v)
 {-# INLINABLE modify #-}     
 
 lens :: (s -> v) -> (s -> v -> s) -> Lens s v
-lens g p = Lens (\s -> (g s, \v -> p s v))
+lens g p = Lens (\s -> StrictPair (g s) (\v -> p s v))
 {-# INLINABLE lens #-}
 
 lens' :: (s -> (v, v -> s)) -> Lens s v
-lens' h = Lens h
+lens' h = Lens $ uncurry StrictPair . h
 {-# INLINABLE lens' #-}
 
-viewrefl = runLens 
+viewrefl l = \s -> let StrictPair a b = runLens l s in (a,b)
 {-# INLINABLE viewrefl #-}
 
 (<<<) :: Lens b c -> Lens a b -> Lens a c 
 y <<< x = Lens $ \s ->
-                  let (v1,r1) = runLens x s
-                      (v2,r2) = runLens y v1
-                  in (v2, r1 . r2)
+                  let StrictPair v1 r1 = runLens x s
+                      StrictPair v2 r2 = runLens y v1
+                  in StrictPair v2 (r1 . r2)
 {-# INLINABLE (<<<) #-}
 
 (***) :: Lens a s -> Lens b t -> Lens (a,b) (s,t)
 x *** y = Lens $ \(a,b) ->
-                  let (va,ra) = runLens x a
-                      (vb,rb) = runLens y b
-                  in ((va,vb), \(va',vb') -> (ra va', rb vb'))
+                  let StrictPair va ra = runLens x a
+                      StrictPair vb rb = runLens y b
+                  in StrictPair (va,vb) (\(va',vb') -> (ra va', rb vb'))
 
 {-# INLINABLE (***) #-}
 
