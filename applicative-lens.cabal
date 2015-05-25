@@ -9,10 +9,31 @@ name:                applicative-lens
 version:             0.1.0.0
 
 -- A short (one-line) description of the package.
--- synopsis:            
+synopsis: applicative bidirectional programming with lenses.
 
 -- A longer description of the package.
--- description:         
+description:         
+   This module provides a way to applicative bidirectional programming
+   with lenses, via an abstract datatype @L@ and lifting and unlifting  
+   functions from and to lenses. 
+   . 
+   > unlinesL :: Lens [String] String
+   > unlinesL = unliftT unlinesH 
+   > 
+   > unlinesH :: [L s String] -> L s String
+   > unlinesH []     = new ""
+   > unlinesH (x:xs) = lift2 catLineL x (unlinesH xs)
+   > 
+   > catLineL :: Lens (String, String) String
+   > catLineL = ... {- some appropriate definition -} ...
+   . 
+   As you can see, we can use the binary lens @catLineL@ as a binary
+   function via a lifting function @lift2@, and construct an involved
+   bidirectional transformation @unlinesH@ in the usual "applicative
+   programming" style. Then, we can obtain an composed lens as @unlinesL@
+   via a unlifting function @unliftT@.
+
+
 
 license:             BSD3
 license-file:        LICENSE
