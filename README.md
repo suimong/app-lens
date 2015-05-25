@@ -5,7 +5,7 @@ A Library to Support Applicative Bidirectional Programming with Lenses
 This library provides an interface for applicative bidirectional programming.
 For example, one can write the following program with our library.
 
-~~~~~~~~~~~~~~~.haskell
+~~~~~~~~~~~~~~~{.haskell}
 import Data.ApplicativeLens
 
 unlinesL :: Lens [String] String
