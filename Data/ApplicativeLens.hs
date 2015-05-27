@@ -6,10 +6,22 @@
 
 
 module Data.ApplicativeLens
-       ( module Data.ApplicativeLens.Core
+       (
+         -- from Data.ApplicativeLens.Core 
+         Lens, get, put, modify, lens, lens'
+       , L() -- abstract
+       , unit, pair 
+       , lift
+       , unlift, unlift2, unliftT
+       , R() -- abstract
+       , observe
+       , unliftM, unliftM2, unliftMT
+
+         -- from this module 
        , sequenceL, list 
        , new, lift2, liftT
        , liftO, liftO2
+       , module Data.ApplicativeLens.Exception
        ) where
 
 import Data.ApplicativeLens.Core
@@ -18,6 +30,13 @@ import Data.ApplicativeLens.Util
 import Data.Traversable (Traversable)
 
 import Control.Exception
+
+
+#ifdef __USE_VAN_LAARHOVEN__ 
+import Data.ApplicativeLens.LLens 
+#else 
+import Data.ApplicativeLens.Lens
+#endif
 
 ---------------------------------------------------------
 

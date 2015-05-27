@@ -5,18 +5,7 @@
 -- Required for unliftM, unliftM2, unliftMT, if we use var Laarhoven repl.
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-module Data.ApplicativeLens.Core
-    (
-      Lens, get, put, modify, lens, lens'
-    , L() -- abstract
-    , unit, pair 
-    , lift
-    , unlift, unlift2, unliftT
-    , R() -- abstract
-    , observe
-    , unliftM, unliftM2, unliftMT
-    , module Data.ApplicativeLens.Exception
-    ) where
+module Data.ApplicativeLens.Core where
     
 import Prelude -- hiding ((.), id, sequence) 
 -- import Control.Category
@@ -204,6 +193,38 @@ update i v (x:xs) = x:update (i-1) v xs
 
 
 -- TODO: TH Generator for lifting and unlifting functions. 
+
+{-
+class Source s where .
+  ...
+
+unlift :: Source src => (forall s => src (L s) -> L s a) -> L (src Identity) a
+unlift = 
+  lens' $ \s -> let l = makeLens s
+                in viewrefl l s 
+  where
+    makeLens s = 
+      unL (f $ projs (shape s)) <<< tag
+
+tag   :: Lens (src Identity) (src Tag)
+
+shape :: src Identity -> src Void1
+
+projs :: src Void1 -> src (L (src Tag)) 
+
+
+instance Source (a,b) where
+
+class MutliContainer sh tlist wher e
+   shape     :: sh k -> sh Void
+
+   contents  :: sh k -> [k (Sum tlist)]
+   fil l     :: sk l -> [k (Sum tlist)] -> sh k 
+
+
+
+
+-}
 
 
 ---------------------------------------
