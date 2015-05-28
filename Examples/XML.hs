@@ -8,7 +8,7 @@ from XML Query Use Cases.
 
 module Examples.XML where
 
-import Data.ApplicativeLens
+import Control.LensFunction
 
 import Data.Traversable (Traversable)
 import Data.Functor

@@ -2,7 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
-import Data.ApplicativeLens
+import Control.LensFunction
 import Examples.Evaluator hiding (incL)
 
 import Criterion.Main

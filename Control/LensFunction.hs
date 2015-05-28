@@ -3,13 +3,12 @@
 
 -- Required for sequenceL, if we use var Laarhoven repl.
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE Safe #-}
 
-
-module Data.ApplicativeLens
+module Control.LensFunction
        (
          -- from Data.ApplicativeLens.Core 
-         Lens, get, put, modify, lens, lens'
-       , L() -- abstract
+         L() -- abstract
        , unit, pair 
        , lift
        , unlift, unlift2, unliftT
@@ -21,27 +20,22 @@ module Data.ApplicativeLens
        , sequenceL, list 
        , new, lift2, liftT
        , liftO, liftO2
-       , module Data.ApplicativeLens.Exception
+       , module Control.LensFunction.Exception
        ) where
 
-import Data.ApplicativeLens.Core
+import Control.LensFunction.Core
+import Control.LensFunction.Util
+import Control.LensFunction.Exception
 
-import Data.ApplicativeLens.Util
 import Data.Traversable (Traversable)
 
 import Control.Exception
 
-
-#ifdef __USE_VAN_LAARHOVEN__ 
-import Data.ApplicativeLens.LLens 
-#else 
-import Data.ApplicativeLens.Lens
-#endif
-
+import qualified Control.Lens as L 
 ---------------------------------------------------------
 
 new :: Eq a => a -> L s a
-new a = lift (lens (const a) (\_ a' -> check a a')) unit
+new a = lift (L.lens (const a) (\_ a' -> check a a')) unit
   where
     check a a' = if a == a' then
                    ()
@@ -49,25 +43,25 @@ new a = lift (lens (const a) (\_ a' -> check a a')) unit
                    throw ConstantUpdateException
 
 {- | The lifting function for binary lenses -}
-lift2 :: Lens (a,b) c -> (L s a -> L s b -> L s c)
+lift2 :: L.Lens' (a,b) c -> (L s a -> L s b -> L s c)
 lift2 l x y = lift l (pair x y) 
 
 {- Derived Functions -}
 
 {- | Similar to @pair@, but this function is for lists. -}
 list :: [L s a] -> L s [a]
-list []     = lift (lens (\() -> []) (\() -> \case { [] -> () ; _ -> throw ShapeMismatchException} )) unit
+list []     = lift (L.lens (\() -> []) (\() -> \case { [] -> () ; _ -> throw ShapeMismatchException} )) unit
 list (x:xs) = lift consL (pair x (list xs))
   where
-    consL = lens (\(x,xs) -> (x:xs))
-                 (\_ -> \case { (x:xs) -> (x,xs); _ -> throw ShapeMismatchException })
+    consL = L.lens (\(x,xs) -> (x:xs))
+                   (\_ -> \case { (x:xs) -> (x,xs); _ -> throw ShapeMismatchException })
 
 {- | A data-type generic version of 'list'. -}
 sequenceL :: (Eq (t ()), Traversable t) => t (L s a) -> L s (t a)
 sequenceL t = lift (fillL t) $ list (contents t)
   where
-    fillL t = lens (\s -> fill t s)
-                   (\_ v -> if shape t == shape v then
+    fillL t = L.lens (\s -> fill t s)
+                     (\_ v -> if shape t == shape v then
                               contents v
                             else
                               throw ShapeMismatchException)
@@ -77,12 +71,12 @@ sequenceL t = lift (fillL t) $ list (contents t)
 ----------------------------------------------------------
 {- | A datatype-generic version of 'lift2'-}
 liftT :: (Eq (t ()), Traversable t)
-         => Lens (t a) b -> (forall s. t (L s a) -> L s b)
+         => L.Lens' (t a) b -> (forall s. t (L s a) -> L s b)
 liftT l xs = lift l (sequenceL xs)
 
 {- | Lifting of observations -}
 liftO :: Eq w => (a -> w) -> L s a -> R s w
-liftO p x = observe (lift (lens p unused) x)
+liftO p x = observe (lift (L.lens p unused) x)
   where
     unused s v | v == p s = s
 

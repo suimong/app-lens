@@ -6,7 +6,7 @@ This library provides an interface for applicative bidirectional programming.
 For example, one can write the following program with our library.
 
 
-    import Data.ApplicativeLens
+    import Control.LensFunction
     
     unlinesL :: Lens [String] String
     unlinesL = unliftT unlinesH 

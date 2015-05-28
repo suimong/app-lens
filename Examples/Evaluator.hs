@@ -4,7 +4,7 @@
 
 module Examples.Evaluator where
 
-import Data.ApplicativeLens
+import Control.LensFunction
 
 import Data.Traversable (Traversable)
 import Data.Foldable    (Foldable) 

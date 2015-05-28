@@ -1,11 +1,12 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, UndecidableInstances #-}
 {-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE CPP #-}
 -- Required for unliftM, unliftM2, unliftMT, if we use var Laarhoven repl.
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-module Data.ApplicativeLens.Core where
+{-# LANGUAGE Safe #-}
+
+module Control.LensFunction.Core where
     
 import Prelude -- hiding ((.), id, sequence) 
 -- import Control.Category
@@ -14,14 +15,11 @@ import Data.Traversable (Traversable)
 import Control.Applicative (Applicative, pure, (<*>))
 import Control.Monad (ap)
 
-import Data.ApplicativeLens.Util
-import Data.ApplicativeLens.Exception
+import Control.LensFunction.Util
+import Control.LensFunction.Exception
+import Control.LensFunction.Internal
 
-#ifdef __USE_VAN_LAARHOVEN__ 
-import Data.ApplicativeLens.LLens 
-#else 
-import Data.ApplicativeLens.Lens
-#endif
+import qualified Control.Lens as L 
 
 import qualified Data.IntMap as IM
 
@@ -31,9 +29,9 @@ import Control.Exception
 import qualified Control.Monad.State as St 
 
 
-dup :: Poset s => Lens s (s,s)
-dup = lens' $ \s -> ((s,s), \(t,t') -> lub t t')
-
+dup :: Poset s => LensI s (s,s)
+dup = lensI' $ \s -> ((s,s), \(t,t') -> lub t t')
+{-# INLINE dup #-}
 
 
 {- | A type class for partially ordered sets, in which pairs are
@@ -65,9 +63,9 @@ instance (Poset a, Eq (t ()), Traversable t) => Poset (t a) where
                 throw NoLUBException 
   
 -- Internally used datastructure for a slightly first merge
-data Diff t a = Diff (t ())              -- ^ Shape of the data -- Assumption: t is Traversable
-                     (IM.IntMap a)       -- ^ Original mapping from indices to values 
-                     (IM.IntMap (Tag a)) -- ^ Updated mapping 
+data Diff t a = Diff (t ())              -- Shape of the data -- Assumption: t is Traversable
+                     (IM.IntMap a)       -- Original mapping from indices to values 
+                     (IM.IntMap (Tag a)) -- Updated mapping 
 
 {-# SPECIALIZE toDiff :: [a] -> Diff [] a #-}
 toDiff :: Traversable t => t a -> Diff t a
@@ -92,15 +90,15 @@ instance Eq a => Poset (Diff t a) where
 {- |
 An abstract type for "updatable" data. 
 -}
-newtype L s a = L { unL :: Poset s => Lens s a }
+newtype L s a = L { unL :: Poset s => LensI s a }
 
 
 {- |
 The lifting function. Note that it defines a functor from the
 category of lenses to the category of sets and functions.
 -}
-lift :: Lens a b -> (forall s. L s a -> L s b)
-lift l (L x) = L (l <<< x)
+lift :: L.Lens' a b -> (forall s. L s a -> L s b)
+lift l (L x) = L (fromLens l <<< x)
 
 {-# INLINABLE lift #-}
 
@@ -115,62 +113,66 @@ infixr 5 >*<
 (>*<) = pair
 
 unit :: L s ()
-unit = L $ lens' (\s -> ( (), \() -> s ) )
+unit = L $ lensI' (\s -> ( (), \() -> s ) )
 
 
 
 {- | The unlifting function, satisfying @unlift (lift x) = x@. -}
-unlift :: Eq a => (forall s. L s a -> L s b) -> Lens a b
-unlift f = unL (f id') <<< tag
+unlift :: Eq a => (forall s. L s a -> L s b) -> L.Lens' a b
+unlift f = toLens $ unL (f id') <<< tag
 
 id' :: L (Tag s) s 
-id' = L $ lens unTag (const U)
+id' = L $ lensI unTag (const U)
+{-# INLINE id' #-}
 
-tag :: Lens s (Tag s)
-tag = lens O (const unTag)
-
+tag :: LensI s (Tag s)
+tag = lensI O (const unTag)
+{-# INLINE tag #-}
 
 {- | The unlifting function for binary functions, satisfying
      @unlift2 (lift2 x) = x@ where @lift2 l x y = lift l (pair x y)@  -}
-unlift2 :: (Eq a, Eq b) => (forall s. L s a -> L s b -> L s c) -> Lens (a,b) c
-unlift2 f = unL (f fst' snd') <<< tag2
+unlift2 :: (Eq a, Eq b) => (forall s. L s a -> L s b -> L s c) -> L.Lens' (a,b) c
+unlift2 f = toLens $ unL (f fst' snd') <<< tag2
 
 
 fst' :: L (Tag a,b) a
-fst' = L $ lens (unTag . fst) (\(_,b) a -> (U a, b))
+fst' = L $ lensI (unTag . fst) (\(_,b) a -> (U a, b))
+{-# INLINE fst' #-}
 
 snd' :: L (a, Tag b) b 
-snd' = L $ lens (unTag . snd) (\(a,_) b -> (a, U b))
+snd' = L $ lensI (unTag . snd) (\(a,_) b -> (a, U b))
+{-# INLINE snd' #-}
 
-tag2 :: Lens (a,b) (Tag a, Tag b)
-tag2 = lens (\(a,b) -> (O a, O b)) (\_ (a,b) -> (unTag a, unTag b))
-
+tag2 :: LensI (a,b) (Tag a, Tag b)
+tag2 = lensI (\(a,b) -> (O a, O b)) (\_ (a,b) -> (unTag a, unTag b))
+{-# INLINE tag2 #-}
 
 
 unliftT :: (Eq a, Eq (t ()), Traversable t) =>
-           (forall s. t (L s a) -> L s b) -> Lens (t a) b
-unliftT f =
-  lens' $ \s -> let l = makeLens s
-                in viewrefl l s 
+           (forall s. t (L s a) -> L s b) -> L.Lens' (t a) b
+unliftT f = toLens $ 
+  lensI' $ \s -> let l = makeLens s
+                 in viewrefl l s 
   where
 --    makeLens s = unL (f (projs (shape s))) <<< tagT
     makeLens s = unL (f (projsV (shape s))) <<< diffL 
 
-tagT :: Functor f => Lens (f s) (f (Tag s))
-tagT = lens (fmap O) (\_ -> fmap unTag)
+tagT :: Functor f => LensI (f s) (f (Tag s))
+tagT = lensI (fmap O) (\_ -> fmap unTag)
+{-# INLINE tagT #-}
 
-diffL = lens' $ \s -> (toDiff s, \v -> fromDiff v)
+diffL = lensI' $ \s -> (toDiff s, \v -> fromDiff v)
+{-# INLINE diffL #-}
 
 
--- V is from Voigtlaender
-    
+-- V is from Voigtlaender    
 projsV :: Traversable t => t b -> t (L (Diff t a) a)
 projsV sh =
   let n = length (contents sh)
   in fill sh $ map (projV sh) [0..n-1]
 
 projV :: Traversable t => t b -> Int -> L (Diff t a) a
-projV sh i = L $ lens' $ \(Diff s o m) ->
+projV sh i = L $ lensI' $ \(Diff s o m) ->
                            ( fromJust (IM.lookup i o),
                              \v -> Diff s o (IM.singleton i (U v)))
                           
@@ -185,7 +187,7 @@ projs sh =
 
 proj :: Traversable t => t b -> Int -> L (t (Tag a)) a
 proj sh i = L $
-            lens (\s -> unTag (contents s !! i))
+            lensI  (\s -> unTag (contents s !! i))
                    (\s v -> fill sh (update i (U v) (contents s)))
 
 update 0 v (_:xs) = v:xs
@@ -193,38 +195,6 @@ update i v (x:xs) = x:update (i-1) v xs
 
 
 -- TODO: TH Generator for lifting and unlifting functions. 
-
-{-
-class Source s where .
-  ...
-
-unlift :: Source src => (forall s => src (L s) -> L s a) -> L (src Identity) a
-unlift = 
-  lens' $ \s -> let l = makeLens s
-                in viewrefl l s 
-  where
-    makeLens s = 
-      unL (f $ projs (shape s)) <<< tag
-
-tag   :: Lens (src Identity) (src Tag)
-
-shape :: src Identity -> src Void1
-
-projs :: src Void1 -> src (L (src Tag)) 
-
-
-instance Source (a,b) where
-
-class MutliContainer sh tlist wher e
-   shape     :: sh k -> sh Void
-
-   contents  :: sh k -> [k (Sum tlist)]
-   fil l     :: sk l -> [k (Sum tlist)] -> sh k 
-
-
-
-
--}
 
 
 ---------------------------------------
@@ -257,8 +227,8 @@ observe l = R $ \s ->  let w = get (unL l) s
 {-# INLINABLE observe #-}
 
 {- | A monadic version of 'unlift' -}
-unliftM :: Eq a => (forall s. L s a -> R s (L s b)) -> Lens a b
-unliftM f = lens' $ \s -> viewrefl (makeLens f s) s 
+unliftM :: Eq a => (forall s. L s a -> R s (L s b)) -> L.Lens' a b
+unliftM f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s 
   where
     makeLens f s =
       let (l,p) = unR (f id') (O s)
@@ -269,12 +239,12 @@ unliftM f = lens' $ \s -> viewrefl (makeLens f s) s
                  s'
                else
                  throw ChangedObservationException
-      in lens (get l')  put'
+      in lensI (get l')  put'
 
 {- | A monadic version of 'unlift2' -}
 unliftM2 :: (Eq a, Eq b) =>
-            (forall s. L s a -> L s b -> R s (L s c)) -> Lens (a,b) c
-unliftM2 f = lens' $ \s -> viewrefl (makeLens f s) s 
+            (forall s. L s a -> L s b -> R s (L s c)) -> L.Lens' (a,b) c
+unliftM2 f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s 
   where
     makeLens f s =
       let (l,p) = unR (f fst' snd') (get tag2 s)
@@ -285,13 +255,13 @@ unliftM2 f = lens' $ \s -> viewrefl (makeLens f s) s
                  s'
                else
                  throw ChangedObservationException
-      in lens (get l')  put'
+      in lensI (get l')  put'
 
 
 {- | A monadic version of 'unliftT' -}
 unliftMT :: (Eq a, Eq (t ()), Traversable t) =>
-            (forall s. t (L s a) -> R s (L s b)) -> Lens (t a) b
-unliftMT f = lens' $ \s -> viewrefl (makeLens f s) s
+            (forall s. t (L s a) -> R s (L s b)) -> L.Lens' (t a) b
+unliftMT f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s
   where
     makeLens f s =
       let (l,p) = unR (f (projsV (shape s))) (get diffL s)
@@ -304,6 +274,5 @@ unliftMT f = lens' $ \s -> viewrefl (makeLens f s) s
                  s'
                else
                  throw ChangedObservationException
-      in lens (get l')  put'
+      in lensI (get l')  put'
            
-

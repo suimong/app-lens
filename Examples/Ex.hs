@@ -8,7 +8,7 @@ except the lambda-expression evaluator example, which is "Evalulator.hs".
 
 module Examples.Ex where
 
-import Data.ApplicativeLens
+import Control.LensFunction
 import Data.List (elemIndices, splitAt)
 
 

@@ -1,4 +1,6 @@
-module Data.ApplicativeLens.Util where
+{-# LANGUAGE Trustworthy #-}
+
+module Control.LensFunction.Util where
 
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as T

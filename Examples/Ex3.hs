@@ -1,6 +1,6 @@
 module Examples.Ex3 where
 
-import Data.ApplicativeLens
+import Control.LensFunction
 import Data.Map (Map)
 import qualified Data.Map as Map 
 

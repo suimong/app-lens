@@ -8,7 +8,7 @@ This file contains some additional examples.
 
 module Examples.Ex2 where
 
-import Data.ApplicativeLens
+import Control.LensFunction
 import Data.List (elemIndices, splitAt)
 
 import Data.Traversable (Traversable)
@@ -107,7 +107,7 @@ mynubL1 = unliftMT mynub
 mynubL2 :: Eq a => Lens [a] [a]
 mynubL2 = unliftMT (\xs -> mynub (decode xs)) . encodeL
 
-encodeL = Lens encode (const decode) 
+encodeL = lens encode (const decode) 
 
 {-
 *Examples.Ex2> get mynubL1 [1,1,2,3,2]

@@ -1,9 +1,9 @@
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
-module Data.ApplicativeLens.Exception
+module Control.LensFunction.Exception
        (
-         SomeApplicativeLensException(..),
+         SomeLensFunctionException(..),
          NoLUBException(..),
          ChangedObservationException(..),
          ShapeMismatchException(..),
@@ -13,21 +13,21 @@ module Data.ApplicativeLens.Exception
 import Control.Exception
 import Data.Typeable (cast, Typeable)
 
-data SomeApplicativeLensException
-  = forall e. Exception e => SomeApplicativeLensException e
+data SomeLensFunctionException
+  = forall e. Exception e => SomeLensFunctionException e
   deriving Typeable
 
-instance Show SomeApplicativeLensException where
-  show (SomeApplicativeLensException e) = show e 
+instance Show SomeLensFunctionException where
+  show (SomeLensFunctionException e) = show e 
 
-instance Exception SomeApplicativeLensException 
+instance Exception SomeLensFunctionException 
 
-alensToException :: Exception e => e -> SomeException
-alensToException = toException . SomeApplicativeLensException
+lfToException :: Exception e => e -> SomeException
+lfToException = toException . SomeLensFunctionException
 
-alensFromException :: Exception e => SomeException -> Maybe e
-alensFromException x = do
-    SomeApplicativeLensException a <- fromException x
+lfFromException :: Exception e => SomeException -> Maybe e
+lfFromException x = do
+    SomeLensFunctionException a <- fromException x
     cast a
 
 data NoLUBException = NoLUBException deriving (Typeable)
@@ -36,8 +36,8 @@ instance Show NoLUBException where
   show NoLUBException = "No LUB"
 
 instance Exception NoLUBException where
-  toException   = alensToException
-  fromException = alensFromException
+  toException   = lfToException
+  fromException = lfFromException
 
 data ChangedObservationException
   = ChangedObservationException
@@ -47,8 +47,8 @@ instance Show ChangedObservationException where
   show ChangedObservationException = "Changed Observation"
 
 instance Exception ChangedObservationException where
-  toException   = alensToException
-  fromException = alensFromException
+  toException   = lfToException
+  fromException = lfFromException
 
 
 data ShapeMismatchException = ShapeMismatchException
@@ -58,8 +58,8 @@ instance Show ShapeMismatchException where
   show ShapeMismatchException = "Shape Mismatch"
 
 instance Exception ShapeMismatchException where
-  toException   = alensToException
-  fromException = alensFromException
+  toException   = lfToException
+  fromException = lfFromException
 
 data ConstantUpdateException = ConstantUpdateException
                                deriving Typeable 
@@ -67,8 +67,8 @@ instance Show ConstantUpdateException where
   show ConstantUpdateException = "Update on Constant"
 
 instance Exception ConstantUpdateException where
-  toException   = alensToException
-  fromException = alensFromException
+  toException   = lfToException
+  fromException = lfFromException
   
 
 
