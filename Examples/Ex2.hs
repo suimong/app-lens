@@ -22,6 +22,8 @@ import Control.Applicative ((<$>))
 import Control.Category ((.))
 import Prelude hiding ((.))
 
+import Control.Lens
+
 filterM p []     = return []
 filterM p (x:xs) =
   do b <- liftO p x
@@ -33,41 +35,41 @@ filterM p (x:xs) =
 filterL p = unliftMT (\xs -> sequenceL <$> filterM p xs)
 
 {-
-*Examples.Ex2> get (filterL (>2)) [1,2,3,4]
+*Examples.Ex2> [1,2,3,4] ^. filterL (>2)
 [3,4]
-*Examples.Ex2> put (filterL (>2)) [1,2,3,4] [4,5]
+*Examples.Ex2> [1,2,3,4] & filterL (>2) .~ [4,5]
 [1,2,4,5]
-*Examples.Ex2> put (filterL (>2)) [1,2,3,4] [0,3]
-*** Exception: Changing Observation
-*Examples.Ex2> put (filterL (>2)) [1,2,3,4] [1,2,3]
-*** Exception: Shape Mitmatch
-*Examples.Ex2> put (filterL (>2)) [1,2,3,4] [1]
-*** Exception: Shape Mitmatch
+*Examples.Ex2> [1,2,3,4] & filterL (>2) .~ [0,3]
+*** Exception: Control.LensFunction.unliftMT: Changed Observation
+*Examples.Ex2> [1,2,3,4] & filterL (>2) .~ [1,2,3]
+*** Exception: Control.LensFunction.sequenceL: Shape Mismatch
+*Examples.Ex2> [1,2,3,4] & filterL (>2) .~ [1]
+*** Exception: Control.LensFunction.sequenceL: Shape Mismatch
 -}
 
 reverseL = unliftT (\xs -> sequenceL $ reverse xs) 
 
 {-
-*Examples.Ex2> get reverseL [1,2,3]
+*Examples.Ex2> [1,2,3] ^. reverseL
 [3,2,1]
-*Examples.Ex2> put reverseL [1,2,3] [4,5,6]
+*Examples.Ex2> [1,2,3] & reverseL .~ [4,5,6]
 [6,5,4]
-*Examples.Ex2> put reverseL [1,2,3] [4,5]
-*** Exception: Shape Mitmatch
-*Examples.Ex2> put reverseL [1,2,3] [4,5,6,7]
-*** Exception: Shape Mitmatch
+*Examples.Ex2> [1,2,3] & reverseL .~ [4,5]
+*** Exception: Control.LensFunction.sequenceL: Shape Mismatch
+*Examples.Ex2> [1,2,3] & reverseL .~ [4,5,6,7]
+*** Exception: Control.LensFunction.sequenceL: Shape Mismatch
 -}
 
 
 {- Just to show the connection, we implement Voigtlander's bff -}
 bff :: (Traversable t1, Traversable t2, Eq a, Eq (t1 ()), Eq (t2 ())) =>
-       (forall s. t1 (L s a) -> t2 (L s b)) -> Lens (t1 a) (t2 b)
+       (forall s. t1 (L s a) -> t2 (L s b)) -> Lens' (t1 a) (t2 b)
 bff f = unliftT (\t -> sequenceL $ f t)
 
 {- The following is the bff in our previous work in PPDP 13 -}
 bffM :: (Traversable t1, Traversable t2, Eq a, Eq (t1 ()), Eq (t2 ())) =>
         (forall s. t1 (L s a) -> R s (t2 (L s b))) ->
-        Lens (t1 a) (t2 b)
+        Lens' (t1 a) (t2 b)
 bffM f = unliftMT (\t -> sequenceL <$> f t)
 
 
@@ -101,27 +103,27 @@ decode :: EList a -> [a]
 decode (EList is m) =
     [ fromJust $ M.lookup k m | k <- is ]
 
-mynubL1 :: Eq a => Lens [a] [a]
+mynubL1 :: Eq a => Lens' [a] [a]
 mynubL1 = unliftMT mynub
 
-mynubL2 :: Eq a => Lens [a] [a]
-mynubL2 = unliftMT (\xs -> mynub (decode xs)) . encodeL
+mynubL2 :: Eq a => Lens' [a] [a]
+mynubL2 = encodeL . unliftMT (\xs -> mynub (decode xs)) 
 
 encodeL = lens encode (const decode) 
 
 {-
-*Examples.Ex2> get mynubL1 [1,1,2,3,2]
+*Examples.Ex2> [1,1,2,3,2] ^. mynubL1
 [1,2,3]
-*Examples.Ex2> put mynubL1 [1,1,2,3,2] [1,2,6]
+*Examples.Ex2> [1,1,2,3,2] & mynubL1 .~ [1,2,6]
 [1,1,2,6,2]
-*Examples.Ex2> put mynubL1 [1,1,2,3,2] [5,6,7]
-*** Exception: Changing Observatio
-*Examples.Ex2>
-*Examples.Ex2> get mynubL2 [1,1,2,3,2]
+*Examples.Ex2> [1,1,2,3,2] & mynubL1 .~ [5,6,7]
+*** Exception: Control.LensFunction.unliftMT: Changed Observation
+
+*Examples.Ex2> [1,1,2,3,2] ^. mynubL2
 [1,2,3]
-*Examples.Ex2> put mynubL2 [1,1,2,3,2] [1,2,6]
+*Examples.Ex2> [1,1,2,3,2] & mynubL2 .~ [1,2,6]
 [1,1,2,6,2]
-*Examples.Ex2> put mynubL2 [1,1,2,3,2] [5,6,7]
+*Examples.Ex2> [1,1,2,3,2] & mynubL2 .~ [5,6,7]
 [5,5,6,7,6]
 -}
 

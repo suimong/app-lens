@@ -6,18 +6,20 @@ import Control.LensFunction
 import Examples.Evaluator hiding (incL)
 
 import Criterion.Main
+import Control.Lens
 
 test n = unlift (\x -> iterate (lift incL) x !! n)
 
 test2 = unliftT (\(x:xs) -> foldl (lift2 addL) x xs)
   where
-    addL :: Lens (Int, Int) Int 
+    addL :: Lens' (Int, Int) Int 
     addL = lens' $ \(a,b) -> (a + b, \v -> (v - b, b))
     
 
-incL :: Lens Int Int
+incL :: Lens' Int Int
 incL = lens' $ \s -> (s + 1, (\v -> v - 1))
 
+put l s v = set l v s
 
 main = defaultMain [
   bgroup "composition" [ bench "U10000000" $ nf (put (test 10000000) 0) 0

@@ -9,6 +9,8 @@ import Control.LensFunction
 import Data.Traversable (Traversable)
 import Data.Foldable    (Foldable) 
 
+import Control.Lens
+
 data Exp = ENum Integer
          | EInc Exp 
          | EFun String Exp 
@@ -59,8 +61,8 @@ env0   = Env [("x", VNum 3)]
 envn n = Env $ [("x", VNum 3)] ++ [  ("y" ++ show i, VNum i)  | i <- [1..n] ]
 
 {-
-*Examples.Ex> get (evalL expr) env0
+*Examples.Evaluator> env0 ^. evalL expr
 VNum 65539
-*Examples.Ex> put (evalL expr) env0 (VNum 65536)
-Env [("x",VNum 0)]
+*Examples.Evaluator> env0 & evalL expr .~ (VNum 0)
+Env [("x",VNum (-65536))]
 -}

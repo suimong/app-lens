@@ -8,6 +8,8 @@ import Examples.Evaluator hiding (incL)
 import Criterion.Main
 
 import Control.DeepSeq
+import Control.Lens
+
 
 instance NFData a => NFData (Env a) where
   rnf (Env xs) = rnf xs
@@ -31,8 +33,10 @@ expr1 = twice @@ twice @@ (twice @@ twice @@ twice @@ (twice @@ twice @@ twice @
       inc   = EFun "x" (EInc (EVar "x"))
       x     = EVar "x"
 
-incL :: Lens Int Int
+incL :: Lens' Int Int
 incL = lens' $ \s -> (s + 1, (\v -> v - 1))
+
+put l s v = set l v s 
 
 main = defaultMain [
   bgroup "evalL" [ bench "E0"    $ nf (put (evalL expr) env0)        (VNum 0)

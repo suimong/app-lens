@@ -1,17 +1,7 @@
 name:                app-lens
-
--- The package version.  See the Haskell package versioning policy (PVP) 
--- for standards guiding when and how versions should be incremented.
--- http://www.haskell.org/haskellwiki/Package_versioning_policy
--- PVP summary:      +-+------- breaking API changes
---                   | | +----- non-breaking API additions
---                   | | | +--- code changes with no API change
 version:             0.1.0.0
+synopsis: Applicative Bidirectional Programming with Lenses.
 
--- A short (one-line) description of the package.
-synopsis: applicative bidirectional programming with lenses.
-
--- A longer description of the package.
 description:         
    This module provides a way to applicative bidirectional programming
    with lenses, via an abstract datatype @L@ and lifting and unlifting  
@@ -40,15 +30,13 @@ license-file:        LICENSE
 
 author:              Kazutaka Matsuda
 maintainer:          kztk@ecei.tohoku.ac.jp
-category:            Data
+category:            Control
 build-type:          Simple
 cabal-version:       >=1.10
 
 Flag UseVanLaarhoven
   Description: Use lens package as an internal implementation of lens
   Default:     False 
-
-
 
 Library
   exposed-modules:
@@ -84,7 +72,7 @@ Benchmark compositions
   type: exitcode-stdio-1.0
   Main-is: Bench/Compositions.hs
   Build-Depends: 
-     applicative-lens, 
+     app-lens, 
      base,
      mtl, 
      containers, 
@@ -103,7 +91,7 @@ Benchmark eval
   type: exitcode-stdio-1.0
   Main-is: Bench/Eval.hs
   Build-Depends: 
-     applicative-lens, 
+     app-lens, 
      base,
      mtl, 
      containers, 

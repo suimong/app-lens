@@ -30,41 +30,41 @@ lfFromException x = do
     SomeLensFunctionException a <- fromException x
     cast a
 
-data NoLUBException = NoLUBException deriving (Typeable)
+data NoLUBException = NoLUBException String deriving (Typeable)
 
 instance Show NoLUBException where
-  show NoLUBException = "No LUB"
+  show (NoLUBException s) = s ++ ": No LUB"
 
 instance Exception NoLUBException where
   toException   = lfToException
   fromException = lfFromException
 
 data ChangedObservationException
-  = ChangedObservationException
+  = ChangedObservationException String
   deriving Typeable
 
 instance Show ChangedObservationException where
-  show ChangedObservationException = "Changed Observation"
+  show (ChangedObservationException s) = s ++ ": Changed Observation"
 
 instance Exception ChangedObservationException where
   toException   = lfToException
   fromException = lfFromException
 
 
-data ShapeMismatchException = ShapeMismatchException
+data ShapeMismatchException = ShapeMismatchException String
                                deriving Typeable 
 
 instance Show ShapeMismatchException where
-  show ShapeMismatchException = "Shape Mismatch"
+  show (ShapeMismatchException s) = s ++ ": Shape Mismatch"
 
 instance Exception ShapeMismatchException where
   toException   = lfToException
   fromException = lfFromException
 
-data ConstantUpdateException = ConstantUpdateException
+data ConstantUpdateException = ConstantUpdateException String
                                deriving Typeable 
 instance Show ConstantUpdateException where 
-  show ConstantUpdateException = "Update on Constant"
+  show (ConstantUpdateException s) = s ++ ": Update on Constant"
 
 instance Exception ConstantUpdateException where
   toException   = lfToException

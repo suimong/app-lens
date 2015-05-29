@@ -60,7 +60,7 @@ instance (Poset a, Eq (t ()), Traversable t) => Poset (t a) where
   lub t1 t2 = if shape t1 == shape t2 then
                 fill t1 (zipWith lub (contents t1) (contents t2))
               else
-                throw NoLUBException 
+                throw (NoLUBException "Control.LensFunction.lub")
   
 -- Internally used datastructure for a slightly first merge
 data Diff t a = Diff (t ())              -- Shape of the data -- Assumption: t is Traversable
@@ -238,7 +238,7 @@ unliftM f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s
             in if p (O s') then
                  s'
                else
-                 throw ChangedObservationException
+                 throw (ChangedObservationException "Control.Lens.Function.unliftM")
       in lensI (get l')  put'
 
 {- | A monadic version of 'unlift2' -}
@@ -254,7 +254,7 @@ unliftM2 f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s
             in if p (get tag2 s') then
                  s'
                else
-                 throw ChangedObservationException
+                 throw (ChangedObservationException "Control.LensFunction.unliftM2")
       in lensI (get l')  put'
 
 
@@ -273,6 +273,6 @@ unliftMT f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s
             in if p (get diffL {- tagT -} s') then
                  s'
                else
-                 throw ChangedObservationException
+                 throw (ChangedObservationException "Control.LensFunction.unliftMT")
       in lensI (get l')  put'
            

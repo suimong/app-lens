@@ -1,12 +1,13 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE Trustworthy #-}
 
 {- | Internal Representation of Lenses -}
 
 module Control.LensFunction.Internal
        (
-         LensI(), get, put 
+         LensI(), get, put
+       , lens' 
        , lensI, lensI', viewrefl
        , fromLens
        , toLens 
@@ -14,13 +15,18 @@ module Control.LensFunction.Internal
        ) where
 
 #ifdef __USE_VAN_LAARHOVEN__
-
 import Control.LensFunction.InternalL
-
 #else
-
 import qualified Control.Lens as L 
 import Control.Applicative
+#endif 
+
+lens' :: (s -> (v, v -> s)) -> L.Lens' s v
+lens' f = \u s -> let (v,r) = f s
+                  in fmap r (u v)
+
+
+#ifndef __USE_VAN_LAARHOVEN__
 
 newtype Store v s = Store (StrictPair v (v -> s))
 
@@ -86,6 +92,16 @@ x *** y = LensI $ \(a,b) ->
                   in StrictPair (va,vb) (\(va',vb') -> (ra va', rb vb'))
 
 {-# INLINABLE (***) #-}
+
+{-# INLINE[2] fromLens #-}
+{-# INLINE[2] toLens #-}
+
+{-# RULES
+
+"lens/fromLens"   forall g p. fromLens (L.lens g p) = lensI g p
+"lens'/fromLens"  forall f.   fromLens (lens' f)  = lensI' f
+"fromLens/toLens" forall x. fromLens (toLens x)   = x
+  #-}
 
 #endif 
 

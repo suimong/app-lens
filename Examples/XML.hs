@@ -24,6 +24,8 @@ import Control.Monad.List hiding (lift)
 import qualified Control.Monad.Trans as M
 import Control.Applicative
 
+import Control.Lens hiding (deep, children)
+
 import Text.PrettyPrint.HughesPJ
 
 import qualified Text.ParserCombinators.ReadP as P
@@ -250,7 +252,7 @@ test_view_q1'
         <price>129.95</price>
     </book>
 </bib>
-*Examples.XML> pretty $ get q1L test_src
+*Examples.XML> pretty $ test_src ^. q1L
 <bib>
     <book year="1994"><title>TCP/IP Illustrated</title></book>
     <book year="1992">
@@ -266,7 +268,7 @@ test_view_q1'
         <title>Advanced Programming in the Unix Environment</title>
     </book>
 </bib>
-*Examples.XML> pretty $ put q1L test_src test_view_q1
+*Examples.XML> pretty $ test_src & q1L .~ test_view_q1
 <bib>
     <book year="1994">
         <title>TCP/IP Illustrated (Second Edition)</title>
@@ -303,15 +305,15 @@ test_view_q1'
 </bib>
 -}
 {-
-*Examples.XML> pretty $ test_view_q1'
+*Examples.XML> pretty test_view_q1'
 <bib>
     <book year="1994"><title>TCP/IP illustrated</title></book>
     <book year="1991">
         <title>Advanced Programming in the Unix Environment</title>
     </book>
 </bib>
-*Examples.XML> pretty $ put q1L test_src test_view_q1'
-*** Exception: Changing Observation
+*Examples.XML> pretty $ test_src & q1L .~ test_view_q1'
+*** Exception: Control.LensFunction.unliftMT: Changed Observation
 -}
 
 
@@ -379,6 +381,8 @@ test_src2 =
       
 liftShow x = fmap trace $ M.lift $ liftO show x
 
+
+q5 :: Tree (L s Lab) -> ListT (R s) [Tree (L s Lab)]
 q5 doc = gather $ 
          do item <- deep (ofLabel (new $ E "news_item")) doc 
             cont <- string =<< (keep /> ofLabel (new $ E "content")) item
@@ -437,26 +441,26 @@ catDate = lens (\(t,(d,p)) -> T $ t ++ "." ++ d ++ "." ++ p)
         numP   = P.satisfy isNumber 
             
 
-runTrans :: (forall s. Tree (L s Lab) -> ListT (R s) (Tree (L s Lab))) -> Lens (Tree Lab) (Tree Lab)
+runTrans :: (forall s. Tree (L s Lab) -> ListT (R s) (Tree (L s Lab))) -> Lens' (Tree Lab) (Tree Lab)
 runTrans f = unliftMT (fmap sequenceL . pick . f)
 
+q5L :: Lens' (Tree Lab) [Tree Lab]
 q5L = unliftMT (\x -> fmap (sequenceL . fmap sequenceL) $ pick $ q5 x)        
 
 {-
-*Examples.XML> putStr $ unlines $ map show $ map pretty $  get q5L test_src2
-<item_summary>
+*Examples.XML> map pretty $ test_src2 ^. q5L
+[<item_summary>
     Gorilla Corporation acquires YouNameItWeIntegrateIt.com.1-20-2000.Today, Gorilla Corporation announced that it will purchase
 YouNameItWeIntegrateIt.com. The shares of
 YouNameItWeIntegrateIt.com dropped $3.00 as a result of this
 announcement.
-</item_summary>
-<item_summary>
+</item_summary>,<item_summary>
     Foobar Corporation is suing Gorilla Corporation for patent infringement.1-20-2000.In surprising developments today, Foobar Corporation
 announced that it is suing Gorilla Corporation for patent
 infringement. The patents that were mentioned as part of the
 lawsuit are considered to be the basis of Foobar
 Corporation'sWireless Foo line of products
-</item_summary>
+</item_summary>]
 -}
 
 
@@ -472,7 +476,7 @@ test_view2 =
    [N (T "Foobar Corporation is Suing Gorilla Corporation for Patent Infringement.1-20-2000.In surprising developments today, Foobar Corporation\nannounced that it is suing Gorilla Corporation for patent\ninfringement. The patents that were mentioned as part of the\nlawsuit are considered to be the basis of Foobar\nCorporation'sWireless Foo line of products") []]]
 
 {-
-*Examples.XML> pretty $ put q5L test_src2 test_view2
+*Examples.XML> pretty $ test_src2 & q5L .~ test_view2
 <news>
     <news_item>
         <title>
@@ -557,75 +561,6 @@ test_view2' =
 
 
 {-
-*Examples.XML> pretty $ put q5L test_src2 test_view2
-<news>
-    <news_item>
-        <title>
-            Gorilla Corporation acquires YouNameItWeIntegrateIt.com
-        </title>
-        <content>
-            <par>
-                Today, Gorilla Corporation announced that it will purchase
-YouNameItWeIntegrateIt.com. The shares of
-YouNameItWeIntegrateIt.com dropped $3.00 as a result of this
-announcement.
-            </par>
-            <par>As a result of this acquisition, the CEO ...</par>
-            <par>
-                YouNameItWeIntegrateIt.com is a leading systems integrator
-            </par>
-        </content>
-        <date>1-20-2015</date>
-        <author>Mark Davis</author>
-        <news_agent>News Online</news_agent>
-    </news_item>
-    <news_item>
-        <title>
-            Foobar Corporation releases its new line of Foo products today
-        </title>
-        <content>
-            <par>
-                Foobar Corporation releases the 20.9 version of its Foo
-products.  The new version of Foo products solve known
-performance problems which existed in 20.8 line and
-increases the speed of Foo based products tenfold. It also
-allows wireless clients to be connected to the Foobar
-servers.
-            </par>
-            <par>The President of Foobar Corporation announced ...</par>
-            <figure>
-                <title>
-                    Presidents of Foobar Corporation and TheAppCompany Inc. Shake Hands
-                </title>
-                <image source="handshake.jpg"></image>
-            </figure>
-        </content>
-        <date>1-20-2000</date>
-        <news_agent>Foovar Corporation</news_agent>
-    </news_item>
-    <news_item>
-        <title>
-            Foobar Corporation is Suing Gorilla Corporation for Patent Infringement
-        </title>
-        <content>
-            <par>
-                In surprising developments today, Foobar Corporation
-announced that it is suing Gorilla Corporation for patent
-infringement. The patents that were mentioned as part of the
-lawsuit are considered to be the basis of Foobar
-Corporation's
-                <quote>Wireless Foo</quote>
-                 line of products
-            </par>
-            <par>
-                The tension between Foobar and Gorilla Corporations has ...
-            </par>
-        </content>
-        <date>1-20-2000</date>
-        <news_agent>Reliable News Corporation</news_agent>
-    </news_item>
-</news>
-*Examples.XML> pretty $ put q5L test_src2 test_view2'
 <news>
     <news_item>
         <title>
