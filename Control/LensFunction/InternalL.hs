@@ -16,25 +16,25 @@ type LensI s v = L.Lens' s v
 
 fromLens :: L.Lens' s v -> LensI s v 
 fromLens x = x
-{-# INLINABLE[2] fromLens #-}
+{-# INLINE[2] fromLens #-}
 
 toLens :: LensI s v -> L.Lens' s v
 toLens x = x
-{-# INLINABLE[2] toLens #-}
+{-# INLINE[2] toLens #-}
 
 get :: LensI s v -> s -> v 
 get lens = L.view lens
 
-{-# INLINABLE get #-}
+{-# INLINE get #-}
 
 put :: LensI s v -> s -> v -> s
 put lens = flip (L.set lens) 
-{-# INLINABLE put #-}
+{-# INLINE put #-}
 
 
 modify :: LensI s v -> (v -> v) -> s -> s
 modify lens = L.over lens
-{-# INLINABLE modify #-}
+{-# INLINE modify #-}
 
 newtype Store a b = Store { runStore :: (a, a -> b) }
 
@@ -44,21 +44,21 @@ instance Functor (Store a) where
 
 viewrefl :: LensI s v -> (s -> (v, v -> s))
 viewrefl lens s = runStore $ lens (\v -> Store (v, id)) s  
-{-# INLINABLE viewrefl #-}
+{-# INLINE viewrefl #-}
 
 
 lensI :: (s -> v) -> (s -> v -> s) -> LensI s v
 lensI = L.lens
-{-# INLINABLE lensI #-}
+{-# INLINE lensI #-}
 
 lensI' :: (s -> (v, v -> s)) -> LensI s v
 lensI' h = \f -> \s -> let (v,r) = h s
                        in fmap r (f v)
-{-# INLINABLE lensI' #-}
+{-# INLINE lensI' #-}
 
 (***) :: LensI a b -> LensI a' b' -> LensI (a,a') (b,b')
 x *** y = L.alongside x y
-{-# INLINABLE (***) #-}
+{-# INLINE (***) #-}
 
 (<<<) = flip (.)
-{-# INLINABLE (<<<) #-}
+{-# INLINE (<<<) #-}

@@ -28,11 +28,14 @@ import Control.Exception
 
 import qualified Control.Monad.State as St 
 
-
+{- | 
+A variant of 'Control.Lens.lens'. Sometimes, this function would be
+easier to use because one can re-use a source information to define a "put". 
+-}
 lens' :: (s -> (v, v -> s)) -> L.Lens' s v
 lens' f = \u s -> let (v,r) = f s
                   in fmap r (u v)
-{-# INLINABLE[2] lens' #-}
+{-# INLINE[1] lens' #-}
 
 
 dup :: Poset s => LensI s (s,s)
@@ -48,7 +51,7 @@ partial.
 -}          
 class Poset s where
     lub :: s -> s -> s -- ^ Operation to take LUB 
-    
+
 data Tag a = O { unTag :: a } -- Original, or irrelevant
            | U { unTag :: a } -- Updated, or relevant 
 
@@ -96,42 +99,62 @@ instance Eq a => Poset (Diff t a) where
 {- |
 An abstract type for "updatable" data. 
 -}
-newtype L s a = L { unL :: Poset s => LensI s a }
+newtype L s a = L (Poset s => LensI s a)
+
+unL (L s) = s
+{-# INLINE unL #-}
 
 
 {- |
-The lifting function. Note that it defines a functor from the
+The lifting function. Note that it forms a functor from the
 category of lenses to the category of sets and functions.
+
+'unlift' is a left-inverse of this function.
+
+prop> unlift (lift x) = x
+
 -}
 lift :: L.Lens' a b -> (forall s. L s a -> L s b)
-lift l (L x) = L (fromLens l <<< x)
+lift l = liftI (fromLens l)
 
 liftI :: LensI a b -> (forall s. L s a -> L s b)
-liftI h (L x) = L (h <<< x)
+liftI h = \(L x) -> L (h <<< x)
 
-{-# RULES
-"lift/lens'" forall x. lift  (lens' x) = liftI (lensI' x)
-"lift/lens"  forall g p. lift (L.lens g p) = liftI (lensI g p)
-"lens/fromLens"   forall g p. fromLens (L.lens g p) = lensI g p
-"lens'/fromLens"  forall f.   fromLens (lens' f)  = lensI' f
-  #-}
+{-# NOINLINE[1]  lift #-}
+{-# INLINE       liftI #-}
 
-{-# INLINABLE[2] lift #-}
-{-# INLINABLE[2] liftI #-}
+{- | A paring function of @L s a@-typed values.
+This function is defined from 'lift2' as below.
 
-{- | A paring function of @L s a@-typed values. -}
+prop> pair = lift2 (lens id (const id)) 
+-}
 pair :: L s a -> L s b -> L s (a,b) 
 pair (L x) (L y) = L ((x *** y) <<< dup)
 
-{-# INLINABLE pair #-}
+{-# INLINE pair #-}
 
 -- | An alternative notation. 
 infixr 5 >*<
 (>*<) = pair
 
+{- |
+The unit element in the lifted world.
+
+Let @elimUnitL@ and @elimUnitR@ are lenses defined as follows.
+
+@
+elimUnitL = lens (\(x,()) -> x) (\_ x -> (x,()))
+elimUnitR = lens (\((),x) -> x) (\_ x -> ((),x))
+@
+
+Then, we have the following laws.
+
+prop> lift2 elimUnitL x unit = x
+prop> lift2 elimUnitR unit x = x
+-}
 unit :: L s ()
 unit = L $ lensI' (\s -> ( (), \() -> s ) )
-
+{-# INLINABLE unit #-}
 
 
 {- | The unlifting function, satisfying @unlift (lift x) = x@. -}
@@ -293,3 +316,10 @@ unliftMT f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s
                  throw (ChangedObservationException "Control.LensFunction.unliftMT")
       in lensI (get l')  put'
            
+{-# RULES
+"lift/lens'"       forall x.   lift (lens' x)        = liftI (lensI' x)
+"lift/lens"        forall g p. lift (L.lens g p)     = liftI (lensI g p)
+"lens/fromLens"    forall g p. fromLens (L.lens g p) = lensI g p
+"lens'/fromLens"   forall f.   fromLens (lens' f)    = lensI' f
+  #-}
+
