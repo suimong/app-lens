@@ -26,7 +26,6 @@ module Control.LensFunction
        ) where
 
 import Control.LensFunction.Core
-import Control.LensFunction.Internal (lens')
 import Control.LensFunction.Util
 import Control.LensFunction.Exception
 

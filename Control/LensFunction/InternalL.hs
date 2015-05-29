@@ -15,12 +15,12 @@ import qualified Control.Lens as L
 type LensI s v = L.Lens' s v
 
 fromLens :: L.Lens' s v -> LensI s v 
-fromLens = id
-{-# INLINABLE fromLens #-}
+fromLens x = x
+{-# INLINABLE[2] fromLens #-}
 
 toLens :: LensI s v -> L.Lens' s v
-toLens = id 
-{-# INLINABLE toLens #-}
+toLens x = x
+{-# INLINABLE[2] toLens #-}
 
 get :: LensI s v -> s -> v 
 get lens = L.view lens
@@ -49,12 +49,12 @@ viewrefl lens s = runStore $ lens (\v -> Store (v, id)) s
 
 lensI :: (s -> v) -> (s -> v -> s) -> LensI s v
 lensI = L.lens
-{-# INLINABLE lens #-}
+{-# INLINABLE lensI #-}
 
 lensI' :: (s -> (v, v -> s)) -> LensI s v
 lensI' h = \f -> \s -> let (v,r) = h s
-                      in fmap r (f v)
-{-# INLINABLE lens' #-}
+                       in fmap r (f v)
+{-# INLINABLE lensI' #-}
 
 (***) :: LensI a b -> LensI a' b' -> LensI (a,a') (b,b')
 x *** y = L.alongside x y

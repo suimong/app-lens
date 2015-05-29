@@ -9,6 +9,9 @@ import Criterion.Main
 import Control.Lens
 
 test n = unlift (\x -> iterate (lift incL) x !! n)
+  where
+    incL :: Lens' Int Int
+    incL = lens' $ \s -> (s + 1, (\v -> v - 1))
 
 test2 = unliftT (\(x:xs) -> foldl (lift2 addL) x xs)
   where
@@ -16,8 +19,7 @@ test2 = unliftT (\(x:xs) -> foldl (lift2 addL) x xs)
     addL = lens' $ \(a,b) -> (a + b, \v -> (v - b, b))
     
 
-incL :: Lens' Int Int
-incL = lens' $ \s -> (s + 1, (\v -> v - 1))
+
 
 put l s v = set l v s
 

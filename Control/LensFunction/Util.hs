@@ -19,8 +19,8 @@ fill t xs = St.evalState (T.traverse next t) xs
                 St.put xs
                 return x
 
-{-# INLINE[2] fill #-}
-{-# INLINE[2] contents #-}                
+{-# INLINABLE[2] fill #-}
+{-# INLINABLE[2] contents #-}                
 {-# RULES
 "fill/list"     fill = fillList
 "contents/list" contents = (id :: [a] -> [a])

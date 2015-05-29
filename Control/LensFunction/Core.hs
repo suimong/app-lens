@@ -4,7 +4,7 @@
 -- Required for unliftM, unliftM2, unliftMT, if we use var Laarhoven repl.
 {-# LANGUAGE NoMonomorphismRestriction #-}
 
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE Trustworthy #-}
 
 module Control.LensFunction.Core where
     
@@ -27,6 +27,12 @@ import Data.Maybe (fromJust)
 import Control.Exception 
 
 import qualified Control.Monad.State as St 
+
+
+lens' :: (s -> (v, v -> s)) -> L.Lens' s v
+lens' f = \u s -> let (v,r) = f s
+                  in fmap r (u v)
+{-# INLINABLE[2] lens' #-}
 
 
 dup :: Poset s => LensI s (s,s)
@@ -100,7 +106,18 @@ category of lenses to the category of sets and functions.
 lift :: L.Lens' a b -> (forall s. L s a -> L s b)
 lift l (L x) = L (fromLens l <<< x)
 
-{-# INLINABLE lift #-}
+liftI :: LensI a b -> (forall s. L s a -> L s b)
+liftI h (L x) = L (h <<< x)
+
+{-# RULES
+"lift/lens'" forall x. lift  (lens' x) = liftI (lensI' x)
+"lift/lens"  forall g p. lift (L.lens g p) = liftI (lensI g p)
+"lens/fromLens"   forall g p. fromLens (L.lens g p) = lensI g p
+"lens'/fromLens"  forall f.   fromLens (lens' f)  = lensI' f
+  #-}
+
+{-# INLINABLE[2] lift #-}
+{-# INLINABLE[2] liftI #-}
 
 {- | A paring function of @L s a@-typed values. -}
 pair :: L s a -> L s b -> L s (a,b) 
