@@ -3,26 +3,35 @@ version:             0.1.0.0
 synopsis: Applicative Bidirectional Programming with Lenses.
 
 description:         
-   This module provides a way to applicative bidirectional programming
-   with lenses, via an abstract datatype @L@ and lifting and unlifting  
-   functions from and to lenses. 
-   . 
-   > unlinesL :: Lens [String] String
-   > unlinesL = unliftT unlinesH 
-   > 
-   > unlinesH :: [L s String] -> L s String
-   > unlinesH []     = new ""
-   > unlinesH (x:xs) = lift2 catLineL x (unlinesH xs)
-   > 
-   > catLineL :: Lens (String, String) String
-   > catLineL = {- some appropriate definition -}
-   . 
-   As you can see, we can use the binary lens @catLineL@ as a binary
-   function via a lifting function @lift2@, and construct an involved
-   bidirectional transformation @unlinesH@ in the usual "applicative
-   programming" style. Then, we can obtain an composed lens as @unlinesL@
-   via a unlifting function @unliftT@.
-
+   This module provides an "applicative" way of composing lenses through
+   the data type 'L'. For example, this module enables us to define a
+   "lens" version of 'unlines' as follows.
+   .
+   @
+   unlinesF :: [L s String] -> L s String
+   unlinesF []     = new ""
+   unlinesF (x:xs) = catLineF x (unlinesF xs)
+      where catLineF = lift2 catLineL
+   
+   catLineL :: Lens' (String, String) String
+   catLineL = ...
+   @
+   .
+   To make a lens from such "lens functions", use unlifting functions
+   ('unlift', 'unlift2', 'unliftT') as follows.
+   .   
+   @
+   unlinesL :: Lens' [String] String
+   unlinesL = unliftT unlinesF
+   @
+   .
+   The obtained lens works as follows.
+   .
+   >>> ["banana", "orange", "apple"] ^. unlinesL
+   "banana\norange\napple\n"
+   >>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n"
+   ["Banana", "Orange", "Apple"]
+    
 
 
 license:             BSD3

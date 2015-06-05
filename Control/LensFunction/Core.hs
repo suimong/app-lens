@@ -97,13 +97,49 @@ instance Eq a => Poset (Diff t a) where
 
 
 {- |
-An abstract type for "updatable" data. 
+An abstract type for "updatable" data. Bidirectional programming
+through our module is to write manipulation of this datatype.
+
+
+
+==== Categorical Notes
+
+The type constructor @L s@ together with 'lift', 'unit' and 'pair'
+defines a lax monoidal functor from the category of lenses to that of
+Haskell functions. The 'lift' function does transfor a lens to a
+function. The 'unit' and 'pair' functions are the core operations on
+this lax monoidal functor.  Any lifting functions defined in this
+module can be defined by these three functions.
+
+
 -}
 newtype L s a = L (Poset s => LensI s a)
 
 unL (L s) = s
 {-# INLINE unL #-}
 
+
+{-
+f id' <<< tag <<< y
+vs.
+f y 
+
+lift2 id :: L s A -> L s B -> L s (A,B)
+
+f y = pair y y
+
+
+(y *** y) <<< dup 
+vs
+(id' *** id') <<< dup <<< tag <<< y
+
+y = (\x -> unTag y) (\_ v -> O v) --- NOT locally well-behaved
+
+put ((y *** y) <<< dup) s (s,v) = _|_
+
+put ((id' *** id') <<< dup <<< tag <<< y) s (s,v) = O v
+
+-}
 
 {- |
 The lifting function. Note that it forms a functor from the
@@ -112,7 +148,11 @@ category of lenses to the category of sets and functions.
 'unlift' is a left-inverse of this function.
 
 prop> unlift (lift x) = x
-
+-}
+{-
+Notice that 'lift' is not a surjection. That is,
+there is a function such that @lift (unlift f) /= f@.
+However such a function cannot be constructed with `lift`.
 -}
 lift :: L.Lens' a b -> (forall s. L s a -> L s b)
 lift l = liftI (fromLens l)
@@ -124,7 +164,7 @@ liftI h = \(L x) -> L (h <<< x)
 {-# INLINE       liftI #-}
 
 {- | A paring function of @L s a@-typed values.
-This function is defined from 'lift2' as below.
+This function can be defined by 'lift2' as below.
 
 prop> pair = lift2 (lens id (const id)) 
 -}
@@ -133,7 +173,7 @@ pair (L x) (L y) = L ((x *** y) <<< dup)
 
 {-# INLINE pair #-}
 
--- | An alternative notation. 
+-- | An alternative notation for 'pair'. 
 infixr 5 >*<
 (>*<) = pair
 
@@ -170,7 +210,8 @@ tag = lensI O (const unTag)
 {-# INLINE tag #-}
 
 {- | The unlifting function for binary functions, satisfying
-     @unlift2 (lift2 x) = x@ where @lift2 l x y = lift l (pair x y)@  -}
+     @unlift2 (lift2 x) = x@.
+-}
 unlift2 :: (Eq a, Eq b) => (forall s. L s a -> L s b -> L s c) -> L.Lens' (a,b) c
 unlift2 f = toLens $ unL (f fst' snd') <<< tag2
 
@@ -187,7 +228,13 @@ tag2 :: LensI (a,b) (Tag a, Tag b)
 tag2 = lensI (\(a,b) -> (O a, O b)) (\_ (a,b) -> (unTag a, unTag b))
 {-# INLINE tag2 #-}
 
+{- |
+The unlifting function for functions that manipulate data structures,
+satisfying @unliftT (liftT x) = x@ if @x@ keeps the shape.
+The constrait @Eq (t ())@ says that we can compare the shapes of
+gvien two containers. 
 
+-}
 unliftT :: (Eq a, Eq (t ()), Traversable t) =>
            (forall s. t (L s a) -> L s b) -> L.Lens' (t a) b
 unliftT f = toLens $ 
@@ -239,7 +286,15 @@ update i v (x:xs) = x:update (i-1) v xs
 
 ---------------------------------------
 
--- | An abstract monad used to keep track of observations. 
+{- |
+An abstract monad used to keep track of observations.
+By this monad, we can inspect the value of 'L s a'-data.
+
+It is worth noting that we cannot change the inspection result to ensure
+the consitency property (aka PutGet in some context).
+
+
+-}
 newtype R s a = R { unR :: Poset s => s -> (a, s -> Bool) }
 
 instance Functor (R s) where
@@ -258,7 +313,20 @@ instance Applicative (R s) where
       
 
 {- |
-A premitive used to define 'liftO' and 'liftO2'. 
+A premitive used to define 'liftO' and 'liftO2'.
+With 'observe', one can inspect the current value of a lifted '(L s a)'-value
+as below.
+
+@
+f x :: L s A -> R s (L s B)
+f x = do viewX <- observe x
+         ... computation depending on 'viewX' ...
+@
+
+Once the 'observe' function is used in a lens function,
+the lens function becomes not able to change 
+change the "observed" value to ensure the correctness.
+
 -}
 observe :: Eq w => L s w -> R s w
 observe l = R $ \s ->  let w = get (unL l) s
@@ -266,7 +334,7 @@ observe l = R $ \s ->  let w = get (unL l) s
 
 {-# INLINABLE observe #-}
 
-{- | A monadic version of 'unlift' -}
+{- | A monadic version of 'unlift'. -}
 unliftM :: Eq a => (forall s. L s a -> R s (L s b)) -> L.Lens' a b
 unliftM f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s 
   where
@@ -281,7 +349,7 @@ unliftM f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s
                  throw (ChangedObservationException "Control.Lens.Function.unliftM")
       in lensI (get l')  put'
 
-{- | A monadic version of 'unlift2' -}
+{- | A monadic version of 'unlift2'. -}
 unliftM2 :: (Eq a, Eq b) =>
             (forall s. L s a -> L s b -> R s (L s c)) -> L.Lens' (a,b) c
 unliftM2 f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s 
@@ -298,7 +366,7 @@ unliftM2 f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s
       in lensI (get l')  put'
 
 
-{- | A monadic version of 'unliftT' -}
+{- | A monadic version of 'unliftT'. -}
 unliftMT :: (Eq a, Eq (t ()), Traversable t) =>
             (forall s. t (L s a) -> R s (L s b)) -> L.Lens' (t a) b
 unliftMT f = toLens $ lensI' $ \s -> viewrefl (makeLens f s) s

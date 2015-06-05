@@ -5,19 +5,95 @@
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE Safe #-}
 
+{-|
+
+
+This module provides an "applicative" way of composing lenses through
+the data type 'L'. For example, this module enables us to define a
+"lens" version of 'unlines' as follows.
+
+@
+unlinesF :: [L s String] -> L s String
+unlinesF []     = new ""
+unlinesF (x:xs) = catLineF x (unlinesF xs)
+  where catLineF = lift2 catLineL
+
+catLineL :: Lens' (String, String) String
+catLineL = ...
+@
+
+To make a lens from such "lens functions", use unlifting functions ('unlift', 'unlift2', 'unliftT') as follows.
+
+@
+unlinesL :: Lens' [String] String
+unlinesL = unliftT unlinesF
+@
+
+The obtained lens works as follows.
+
+>>> ["banana", "orange", "apple"] ^. unlinesL
+"banana\norange\napple\n"
+>>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n"
+["Banana", "Orange", "Apple"]
+
+One can understand that @L s a@ is an updatable @a@. 
+The type @[L s String] -> L s String@ of @unlinesF@ tells us that
+we can update only the list elements.
+Actually, insertion or deletion of lines to the view will fail, as below.
+
+>>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple"
+*** Exception: ...
+>>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n\n"
+*** Exception: ...
+
+If you want to reflect insertions and deletions, one have to write
+a function of type @L s [String] -> L s String@, which says that
+the list structure itself is updatable. To write a function of this type,
+`liftC` and `liftC2` functions would be sometimes useful. 
+
+@
+unlinesF' :: L s [String] -> L s String
+unlinesF' = liftC (foldWithDefault "" "\n") (lift catLineL')
+
+catLineL' :: Lens' (Either () (String,String)) String
+catLineL' = ...
+
+foldWithDefault :: a -> (Lens' (Either () (a,b)) b) -> Lens' [a] b
+foldWithDefault d f = ...
+@
+
+
+
+
+-}
+
 module Control.LensFunction
        (
-         L() -- abstract
-       , lens'
-       , unit, pair, list, sequenceL
-       , new, lift, lift2, liftT
-       , unlift, unlift2, unliftT
-       , R() -- abstract
-       , observe
-       , unliftM, unliftM2, unliftMT
 
-       , liftC, liftC2 
+       -- * Core Datatype
+         L() -- abstract
+
+       -- * Other constructors for @Lens'@
+       , lens'
+       -- * Functions handling pairs and containers
+       , unit, pair, list, sequenceL
+
+       -- * Lifting Functions 
+       , new, lift, lift2, liftT
+
+       -- * Unlifting Functions
+       , unlift, unlift2, unliftT
+
+       -- * Functions for Handling Observations
+       -- ** Core Monad
+       , R() -- abstract
+       -- ** Lifting Observations
+       , observe
        , liftO, liftO2
+       -- ** Unlifting Functions 
+       , unliftM, unliftM2, unliftMT
+       -- * Lifting Functions for Combinators 
+       , liftC, liftC2 
        , module Control.LensFunction.Exception
        ) where
 
@@ -72,7 +148,10 @@ lift2 l x y = lift l (pair x y)
 
 {- Derived Functions -}
 
-{- | Similar to @pair@, but this function is for lists. -}
+{- | Similar to @pair@, but this function is for lists. This is a
+derived function, because this can be defined by using 'lift' and
+'pair'.
+-}
 list :: [L s a] -> L s [a]
 list []     = lift (L.lens (\() -> [])
                            (\() -> \case { [] -> () ; _ -> throw (ShapeMismatchException $ mName ++ ".list")} ))
@@ -82,7 +161,8 @@ list (x:xs) = lift consL (pair x (list xs))
     consL = L.lens (\(x,xs) -> (x:xs))
                    (\_ -> \case { (x:xs) -> (x,xs); _ -> throw (ShapeMismatchException $ mName ++ ".list") })
 
-{- | A data-type generic version of 'list'. -}
+{- | A data-type generic version of 'list'. The contraint @Eq (t ())@
+says that we can check the equivalence of shapes of containers @t@. -}
 sequenceL :: (Eq (t ()), Traversable t) => t (L s a) -> L s (t a)
 sequenceL t = lift (fillL t) $ list (contents t)
   where
@@ -115,7 +195,16 @@ liftT :: (Eq (t ()), Traversable t)
          => L.Lens' (t a) b -> (forall s. t (L s a) -> L s b)
 liftT l xs = lift l (sequenceL xs)
 
-{- | Lifting of observations -}
+{- | Lifting of observations.
+A typical use of this function would be as follows. 
+
+@
+f x :: L s Int -> R s (L s B)
+f x = do b <- liftO (> 0) x 
+         if b then ... else ...           
+@
+
+-}
 liftO :: Eq w => (a -> w) -> L s a -> R s w
 liftO p x = observe (lift (L.lens p unused) x)
   where
