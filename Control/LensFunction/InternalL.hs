@@ -23,18 +23,13 @@ toLens x = x
 {-# INLINE[2] toLens #-}
 
 get :: LensI s v -> s -> v 
-get lens = L.view lens
+get l = L.view l -- the argument is necessary to pass the type check.
 
 {-# INLINE get #-}
 
 put :: LensI s v -> s -> v -> s
 put lens = flip (L.set lens) 
 {-# INLINE put #-}
-
-
-modify :: LensI s v -> (v -> v) -> s -> s
-modify lens = L.over lens
-{-# INLINE modify #-}
 
 newtype Store a b = Store { runStore :: (a, a -> b) }
 
@@ -52,7 +47,7 @@ lensI = L.lens
 {-# INLINE lensI #-}
 
 lensI' :: (s -> (v, v -> s)) -> LensI s v
-lensI' h = \f -> \s -> let (v,r) = h s
+lensI' h = \f s -> let (v,r) = h s
                        in fmap r (f v)
 {-# INLINE lensI' #-}
 

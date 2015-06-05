@@ -1,12 +1,11 @@
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE LambdaCase #-}
 
 -- Required for sequenceL, if we use var Laarhoven repl.
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE Safe #-}
 
 {-|
-
+Applicative bidirectional programming with lenses.
 
 This module provides an "applicative" way of composing lenses through
 the data type 'L'. For example, this module enables us to define a
@@ -34,7 +33,7 @@ The obtained lens works as follows.
 >>> ["banana", "orange", "apple"] ^. unlinesL
 "banana\norange\napple\n"
 >>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n"
-["Banana", "Orange", "Apple"]
+["Banana","Orange","Apple"]
 
 One can understand that @L s a@ is an updatable @a@. 
 The type @[L s String] -> L s String@ of @unlinesF@ tells us that
@@ -80,7 +79,7 @@ module Control.LensFunction
 
        -- * Lifting Functions 
        , new, lift, lift2, liftT
-
+       , liftLens, liftLens'
        -- * Unlifting Functions
        , unlift, unlift2, unliftT
 
@@ -108,6 +107,7 @@ import Control.Exception
 import qualified Control.Lens as L 
 ---------------------------------------------------------
 
+mName :: String
 mName = "Control.LensFunction"
 
 {- | 
@@ -120,7 +120,7 @@ updated.
 new :: Eq a => a -> L s a
 new a = lift (lens' $ const (a, check a)) unit
   where
-    check a a' = if a == a' then
+    check x x' = if x == x' then
                    ()
                  else
                    throw (ConstantUpdateException $ mName ++ ".new")
@@ -154,19 +154,23 @@ derived function, because this can be defined by using 'lift' and
 -}
 list :: [L s a] -> L s [a]
 list []     = lift (L.lens (\() -> [])
-                           (\() -> \case { [] -> () ; _ -> throw (ShapeMismatchException $ mName ++ ".list")} ))
+                           (\() v -> case v of
+                                      [] -> ()
+                                      _  -> throw (ShapeMismatchException $ mName ++ ".list") ))
               unit
-list (x:xs) = lift consL (pair x (list xs))
+list (z:zs) = lift consL (pair z (list zs))
   where
-    consL = L.lens (\(x,xs) -> (x:xs))
-                   (\_ -> \case { (x:xs) -> (x,xs); _ -> throw (ShapeMismatchException $ mName ++ ".list") })
+    consL = L.lens (uncurry (:))
+                   (\_ z -> case z of
+                             (x:xs) -> (x,xs)
+                             _ -> throw (ShapeMismatchException $ mName ++ ".list"))
 
 {- | A data-type generic version of 'list'. The contraint @Eq (t ())@
 says that we can check the equivalence of shapes of containers @t@. -}
 sequenceL :: (Eq (t ()), Traversable t) => t (L s a) -> L s (t a)
-sequenceL t = lift (fillL t) $ list (contents t)
+sequenceL x = lift (fillL x) $ list (contents x)
   where
-    fillL t = L.lens (\s -> fill t s)
+    fillL t = L.lens (fill t)
                      (\_ v -> if shape t == shape v then
                                 contents v
                               else
@@ -208,7 +212,8 @@ f x = do b <- liftO (> 0) x
 liftO :: Eq w => (a -> w) -> L s a -> R s w
 liftO p x = observe (lift (L.lens p unused) x)
   where
-    unused s v | v == p s = s
+    unused s v | v == p s  = s
+               | otherwise = error "This error cannot happen"
 
 {- | Lifting of binary observations -}
 liftO2 :: Eq w => (a -> b -> w) -> L s a -> L s b -> R s w

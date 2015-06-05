@@ -19,7 +19,6 @@ import qualified Control.Lens as L
 #ifdef __USE_VAN_LAARHOVEN__
 import Control.LensFunction.InternalL
 #else
-import Control.Applicative
 #endif 
 
 #ifndef __USE_VAN_LAARHOVEN__
@@ -30,11 +29,12 @@ instance Functor (Store v) where
   {-# INLINE fmap #-}
   fmap = storeMap
 
+storeMap :: (a -> b) -> Store v a -> Store v b 
 storeMap f (Store (v, !g)) = Store (v, f . g)
 {-# INLINE storeMap #-}
 
 fromLens :: L.Lens' s v -> LensI s v
-fromLens l = fromLens' l
+fromLens lens = fromLens' lens -- the argument is necessary to pass the type check.
 
 fromLens' :: ((v -> Store v v) -> (s -> Store v s)) -> LensI s v 
 fromLens' l = 
@@ -68,20 +68,15 @@ put :: LensI s v -> s -> v -> s
 put lens = snd . runLens lens
 {-# INLINE put #-}
 
-modify :: LensI s v -> (v -> v) -> s -> s
-modify lens f s =
-  let (v, r) = runLens lens s
-  in r (f v)
-{-# INLINE modify #-}     
-
 lensI :: (s -> v) -> (s -> v -> s) -> LensI s v
-lensI g p = LensI (\s -> (g s, \v -> p s v))
+lensI g p = LensI (\s -> (g s, p s))
 {-# INLINE lensI #-}
 
 lensI' :: (s -> (v, v -> s)) -> LensI s v
-lensI' h = LensI h
+lensI' = LensI
 {-# INLINE lensI' #-}
 
+viewrefl :: LensI s v -> s -> (v, v -> s)
 viewrefl = runLens
 {-# INLINE viewrefl #-}
 

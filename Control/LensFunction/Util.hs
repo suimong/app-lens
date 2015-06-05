@@ -4,7 +4,6 @@ module Control.LensFunction.Util where
 
 import Data.Traversable (Traversable)
 import qualified Data.Traversable as T
-import Data.Foldable (Foldable)
 import qualified Data.Foldable as F
 
 import qualified Control.Monad.State as St 
@@ -13,19 +12,20 @@ contents :: Traversable t => t a -> [a]
 contents = F.toList
 
 fill :: Traversable t => t b -> [a] -> t a
-fill t xs = St.evalState (T.traverse next t) xs
+fill t = St.evalState (T.traverse next t)
   where
-    next _ = do (x:xs) <- St.get
-                St.put xs
-                return x
+    next _ = do (y:ys) <- St.get
+                St.put ys
+                return y
 
 {-# INLINABLE[2] fill #-}
 {-# INLINABLE[2] contents #-}                
 {-# RULES
 "fill/list"     fill = fillList
-"contents/list" contents = (id :: [a] -> [a])
+"contents/list" contents = id :: [a] -> [a]
   #-}
-fillList xs ys | length xs == length ys = ys
+fillList :: [a] -> [b] -> [b]
+fillList _ ys = ys
 
 shape :: Functor f => f a -> f ()
-shape t = fmap (\_ -> ()) t 
+shape = fmap (const ()) 

@@ -8,14 +8,14 @@ For example, one can write the following program with our library.
 
     import Control.LensFunction
     
-    unlinesL :: Lens [String] String
-    unlinesL = unliftT unlinesH 
+    unlinesL :: Lens' [String] String
+    unlinesL = unliftT unlinesF
     
-    unlinesH :: [L s String] -> L s String
-    unlinesH []     = new ""
-    unlinesH (x:xs) = lift2 catLineL x (unlinesH xs)
+    unlinesF :: [L s String] -> L s String
+    unlinesF []     = new ""
+    unlinesF (x:xs) = lift2 catLineL x (unlinesF xs)
     
-    catLineL :: Lens (String, String) String
+    catLineL :: Lens' (String, String) String
     catLineL = ... {- some appropriate definition -} ...
     
 
