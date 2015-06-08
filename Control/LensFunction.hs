@@ -5,11 +5,9 @@
 {-# LANGUAGE Safe #-}
 
 {-|
-Applicative bidirectional programming with lenses.
-
-This module provides an "applicative" way of composing lenses through
-the data type 'L'. For example, this module enables us to define a
-"lens" version of 'unlines' as follows.
+This module provides an "applicative" (functional) way of composing
+lenses through the data type 'L'. For example, this module enables us
+to define a "lens" version of 'unlines' as follows.
 
 @
 unlinesF :: [L s String] -> L s String
@@ -21,7 +19,8 @@ catLineL :: Lens' (String, String) String
 catLineL = ...
 @
 
-To make a lens from such "lens functions", use unlifting functions ('unlift', 'unlift2', 'unliftT') as follows.
+To make a lens from such "lens functions", one can use unlifting
+functions ('unlift', 'unlift2', 'unliftT') as follows.
 
 @
 unlinesL :: Lens' [String] String

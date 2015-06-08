@@ -1,24 +1,48 @@
 name:     app-lens
 version:  0.1.0.0
-synopsis: Applicative Bidirectional Programming with Lenses
+synopsis: applicative (functional) bidirectional programming that beyonds composition chains 
 
-description:         
-   This module provides an "applicative" way of composing lenses through
-   the data type 'L'. For example, this module enables us to define a
-   "lens" version of 'unlines' as follows.
+description:
+   A bidirectional transformation connects data in difference sources,
+   maintaining consistency amid separate updates. The "lens"
+   programming language---the most famous implementation in Haskell
+   would be the Kmett's 'lens' package---is a solution to this
+   problem.
+   .
+   However, in programming with lenses, we have to stick to the
+   point-free style of programming. Although the point-free style is
+   sometimes concise, and suitable for record-access chains as lens
+   provide, it is sometimes difficult to manage when we write
+   non-small programs.
+   . 
+   This library provides a way to represent (n-ary) lenses as (n-ary)
+   functions, which enables us to compose lenses as usual functions.
+   For example, let us consider 'unlines' functions and how to define
+   a 'lens' version of it, assuming that we already have a lens
+   @catLineL :: Lens' (String, String) String@ that concatenates
+   two strings with a newline in the middle. In our framework, this
+   example can be written by using the usual pattern matching and
+   recursion, as follows.
    .
    @
    unlinesF :: [L s String] -> L s String
    unlinesF []     = new ""
    unlinesF (x:xs) = catLineF x (unlinesF xs)
       where catLineF = lift2 catLineL
-   
-   catLineL :: Lens' (String, String) String
-   catLineL = ...
    @
+   .   
+   Here, @lift2 :: Lens' (a,b) c -> (forall s. L s a -> L s b -> L s
+   c)@ and @new :: a -> (forall s. L s a)@ lift lenses to functions.
+   The former is for binary lenses and the latter is for constants.
+   Thanks to these lifting functions, we can compose lenses as they
+   are functions because they actually are functions. Thus, we can
+   freely use variables (such as @x@ and @xs@ above) to bind sources
+   and targets of lenses, and higher-order functions. That is, we can
+   use an applicative-style (i.e., an usual functional style) to
+   compose lenses.
    .
-   To make a lens from such "lens functions", use unlifting functions
-   ('unlift', 'unlift2', 'unliftT') as follows.
+   To make a lens from such lifted "lens functions", use unlifting
+   functions ('unlift', 'unlift2', 'unliftT') as follows.
    .   
    @
    unlinesL :: Lens' [String] String
@@ -31,7 +55,34 @@ description:
    "banana\norange\napple\n"
    >>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n"
    ["Banana","Orange","Apple"]
-    
+   . 
+   Other examples can be found at "Examples" in the source code
+   <https://bitbucket.org/kztk/app-lens/downloads>.
+   ==== Remark
+   .
+   One of the characteristics of the lens package is that one can
+   write a bidirectional programming as a record-field access chain.
+   For example, given lenses @l1 :: Lens' A B@ and @l2 :: Lens' B C@,
+   one can write forward (or, "getting") and backward (or "putting
+   back") transformations.  as follows.
+   .
+   @
+   src .^ l1 . l2 
+   src & l1 . l2 .~ tgt' 
+   @
+   . 
+   This kind of programming is also possible in our framework, but 
+   the order composition must be inverted. 
+   .
+   @
+   src .^ unlift (lift l2 . lift l1)
+   src & unlift (lift l2 . lift l1) .~ tgt' 
+   @
+   . 
+   Although this situation could be easily recovered by using some
+   extra combinators, this is not the aim of our framework and our
+   framework does not provide any combinators. 
+   
 
 
 license:             BSD3
@@ -81,8 +132,6 @@ Library
     mtl        >=2.2   && < 2.3,
     lens       >=4     && < 4.12
   
-  ghc-options: -O2 
-
   ghc-prof-options: -prof -auto-all -rtsopts 
 
   default-language: Haskell2010
@@ -123,7 +172,7 @@ Benchmark compositions
   if flag(useVanLaarhoven)
     cpp-options: -D__USE_VAN_LAARHOVEN__
 
-  ghc-options: -O2 -rtsopts 
+  ghc-options: -rtsopts 
   ghc-prof-options: -prof -auto-all -rtsopts 
   default-language:    Haskell2010
 
@@ -145,10 +194,13 @@ Benchmark eval
   if flag(useVanLaarhoven)
     cpp-options: -D__USE_VAN_LAARHOVEN__
 
-  ghc-options: -O2 -rtsopts 
+  ghc-options: -rtsopts 
   ghc-prof-options: -prof -auto-all -rtsopts 
   default-language:    Haskell2010
 
+source-repository head
+   type:     git
+   location: https://bitbucket.org/kztk/app-lens
 
 
 
