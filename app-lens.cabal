@@ -1,28 +1,29 @@
 name:     app-lens
 version:  0.1.0.0
-synopsis: applicative (functional) bidirectional programming that beyonds composition chains 
+synopsis: applicative (functional) bidirectional programming beyond composition chains 
 
 description:
-   A bidirectional transformation connects data in difference sources,
+   A bidirectional transformation connects data in difference formats,
    maintaining consistency amid separate updates. The "lens"
-   programming language---the most famous implementation in Haskell
-   would be the Kmett's 'lens' package---is a solution to this
-   problem.
+   programming language---with Kmett's Haskell 'lens' package being
+   one of the most influentials---is a solution to this problem.
    .
-   However, in programming with lenses, we have to stick to the
-   point-free style of programming. Although the point-free style is
-   sometimes concise, and suitable for record-access chains as lens
-   provide, it is sometimes difficult to manage when we write
-   non-small programs.
+   Kmett's lenses are designed for record updates: in bidirectional transformation
+   speak, when a new field value
+   is available, consistency needs to be restored for the record that holds
+   the old value. Its point-free style is very suitable for concisely describing  
+   record-access chains, but becomes less handy when general programming
+   is required.
    . 
-   This library provides a way to represent (n-ary) lenses as (n-ary)
-   functions, which enables us to compose lenses as usual functions.
-   For example, let us consider 'unlines' functions and how to define
-   a 'lens' version of it, assuming that we already have a lens
+   This module provides the infrastructure for programming bidirectional transformations in general,
+   by representing lenses as functions that are subject to the normal applicative-style
+    programming. 
+   For example, let us consider the 'unlines' functions and to define
+   a 'lens' version of it. Assuming that we already have a lens
    @catLineL :: Lens' (String, String) String@ that concatenates
-   two strings with a newline in the middle. In our framework, this
-   example can be written by using the usual pattern matching and
-   recursion, as follows.
+   two strings with a newline in the middle, in our framework we can program 
+   through pattern matching and
+   explicite recursion as usual.
    .
    @
    unlinesF :: [L s String] -> L s String
@@ -33,56 +34,48 @@ description:
    .   
    Here, @lift2 :: Lens' (a,b) c -> (forall s. L s a -> L s b -> L s
    c)@ and @new :: a -> (forall s. L s a)@ lift lenses to functions.
-   The former is for binary lenses and the latter is for constants.
-   Thanks to these lifting functions, we can compose lenses as they
-   are functions because they actually are functions. Thus, we can
-   freely use variables (such as @x@ and @xs@ above) to bind sources
-   and targets of lenses, and higher-order functions. That is, we can
-   use an applicative-style (i.e., an usual functional style) to
-   compose lenses.
+   The former is for binary lenses and the latter is for constant lenses.
+   We can then apply lenses as functions, alleviating
+   the need of specialised combinators. 
    .
-   To make a lens from such lifted "lens functions", use unlifting
-   functions ('unlift', 'unlift2', 'unliftT') as follows.
+   Simply unlifting ('unlift', 'unlift2', 'unliftT') such "lens functions"
+   gives us the desired lenses. 
    .   
    @
    unlinesL :: Lens' [String] String
    unlinesL = unliftT unlinesF
    @
    .
-   The obtained lens works as follows.
+   The obtained lens works as expected.
    .
    >>> ["banana", "orange", "apple"] ^. unlinesL
    "banana\norange\napple\n"
    >>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n"
    ["Banana","Orange","Apple"]
    . 
-   Other examples can be found at "Examples" in the source code
+   More examples can be found at "Examples" in the source code
    <https://bitbucket.org/kztk/app-lens/downloads>.
    ==== Remark
    .
-   One of the characteristics of the lens package is that one can
-   write a bidirectional programming as a record-field access chain.
-   For example, given lenses @l1 :: Lens' A B@ and @l2 :: Lens' B C@,
-   one can write forward (or, "getting") and backward (or "putting
-   back") transformations.  as follows.
+   The applicative-style programming is possible in our implementation 
+   because a function representation different from Kmett's is used for lenses.
+   As a result, when we program record-field access chains such as 
    .
    @
    src .^ l1 . l2 
    src & l1 . l2 .~ tgt' 
    @
-   . 
-   This kind of programming is also possible in our framework, but 
-   the order composition must be inverted. 
+   .
+   The order of composition is inverted in our implementation. 
    .
    @
    src .^ unlift (lift l2 . lift l1)
    src & unlift (lift l2 . lift l1) .~ tgt' 
    @
-   . 
-   Although this situation could be easily recovered by using some
-   extra combinators, this is not the aim of our framework and our
-   framework does not provide any combinators. 
-   
+   .
+   This difference causes slight inconvenience for record updates, but is 
+   crucial in allowing general applicative-style lens programming we
+   aim for.    
 
 
 license:             BSD3
