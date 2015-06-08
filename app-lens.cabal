@@ -8,14 +8,11 @@ description:
    programming language---with Kmett's Haskell 'lens' package being
    one of the most influentials---is a solution to this problem.
    .
-   Kmett's lenses are designed for record updates: in bidirectional transformation
-   speak, when a new field value
-   is available, consistency needs to be restored for the record that holds
-   the old value. Its point-free style is very suitable for concisely describing  
-   record-access chains, but becomes less handy when general programming
-   is required.
+   Many lenses implementations (including Kmett's Haskell library) only
+   support the point-free style of programming. Though concise at times,
+   this style becomes less handy when programs get more complicated. 
    . 
-   This module provides the infrastructure for programming bidirectional transformations in general,
+   This module provides the infrastructure for programming complex bidirectional transformations,
    by representing lenses as functions that are subject to the normal applicative-style
     programming. 
    For example, let us consider the 'unlines' functions and to define
@@ -74,7 +71,7 @@ description:
    @
    .
    This difference causes slight inconvenience for record updates, but is 
-   crucial in allowing general applicative-style lens programming we
+   crucial in allowing the applicative-style lens programming we
    aim for.    
 
 
