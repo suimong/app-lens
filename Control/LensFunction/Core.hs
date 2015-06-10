@@ -39,13 +39,23 @@ lens' f = \u s -> let (v,r) = f s
 {- |
 Just a composition of 'lift' and 'Control.Lens.lens'.
 Sometimes, this function would be more efficient than the composition
-due to eliminted conversion from the lens to the internal representation.
+due to eliminated conversion from the lens to the internal representation.
+
+Since both of the internal and the external representations are
+functions (= normal forms), we have to pay the conversion cost for
+each time when the lifted lens function is evaluated, even in the lazy
+evaluation.
+
+We actually has the RULE to make the composition of 'lift' and
+'Control.Lens.lens' to 'liftLens'. However, the rule may not be fired
+especially when profiling codes are inserted by GHC.
 -}
 liftLens :: (a -> b) -> (a -> b -> a) -> (forall s. L s a -> L s b)
 liftLens g p = liftI (lensI g p)
 
 {- |
-Just a composition of 'lift' and 'lens\''.
+Just a composition of 'lift' and 'lens''. This function has the
+similar role to 'liftLens'.
 -}
 
 liftLens' :: (a -> (b, b -> a)) -> (forall s. L s a -> L s b)
@@ -245,8 +255,8 @@ tag2 = lensI (\(a,b) -> (O a, O b)) (\_ (a,b) -> (unTag a, unTag b))
 {- |
 The unlifting function for functions that manipulate data structures,
 satisfying @unliftT (liftT x) = x@ if @x@ keeps the shape.
-The constrait @Eq (t ())@ says that we can compare the shapes of
-gvien two containers. 
+The constraint @Eq (t ())@ says that we can compare the shapes of
+given two containers. 
 
 -}
 unliftT :: (Eq a, Eq (t ()), Traversable t) =>
@@ -307,7 +317,7 @@ An abstract monad used to keep track of observations.
 By this monad, we can inspect the value of 'L s a'-data.
 
 It is worth noting that we cannot change the inspection result to ensure
-the consitency property (aka PutGet in some context).
+the consistency property (aka PutGet in some context).
 
 
 -}
@@ -329,7 +339,7 @@ instance Applicative (R s) where
       
 
 {- |
-A premitive used to define 'liftO' and 'liftO2'.
+A primitive used to define 'liftO' and 'liftO2'.
 With 'observe', one can inspect the current value of a lifted '(L s a)'-value
 as below.
 

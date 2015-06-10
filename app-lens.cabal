@@ -5,7 +5,7 @@ synopsis: applicative (functional) bidirectional programming beyond composition 
 description:
    A bidirectional transformation connects data in difference formats,
    maintaining consistency amid separate updates. The "lens"
-   programming language---with Kmett's Haskell 'lens' package being
+   programming language---with Kmett's Haskell "lens" package being
    one of the most influentials---is a solution to this problem.
    .
    Many lenses implementations (including Kmett's Haskell library) only
@@ -16,7 +16,7 @@ description:
    bidirectional transformations, by representing lenses as functions
    that are subject to the normal applicative-style programming.  For
    example, let us consider the 'unlines' functions and to define a
-   'lens' version of it. Assuming that we already have a lens
+   lens version of it. Assuming that we already have a lens
    @catLineL :: Lens' (String, String) String@ that concatenates two
    strings with a newline in the middle, in our framework we can
    program through pattern matching and explicit recursion as usual.
@@ -51,7 +51,7 @@ description:
    . 
    One might have found that @unliftF@ should be defined with 'foldr'.
    Indeed, we can use 'foldr' as below because @catLineF@ and
-   @unlinesF@ merely Haskell functions.
+   @unlinesF@ are merely Haskell functions.
    .
    @
    unliftF = foldr (lift2 catLineL) (new "") 
@@ -105,6 +105,7 @@ cabal-version:       >=1.10
 
 Flag UseVanLaarhoven
   Description: Use Control.Lens.Lens' as internal representations.
+               (1.5 times speed up for 'lift' but 1000 times slow down for 'lift2')
   Default:     False 
 
 Library
@@ -132,7 +133,8 @@ Library
     containers >=0.5   && < 0.6, 
     mtl        >=2.2   && < 2.3,
     lens       >=4     && < 4.12
-  
+
+  ghc-options: -O2   
   ghc-prof-options: -prof -auto-all -rtsopts 
 
   default-language: Haskell2010
@@ -173,7 +175,7 @@ Benchmark compositions
   if flag(useVanLaarhoven)
     cpp-options: -D__USE_VAN_LAARHOVEN__
 
-  ghc-options: -rtsopts 
+  ghc-options: -rtsopts -O2
   ghc-prof-options: -prof -auto-all -rtsopts 
   default-language:    Haskell2010
 
@@ -195,7 +197,7 @@ Benchmark eval
   if flag(useVanLaarhoven)
     cpp-options: -D__USE_VAN_LAARHOVEN__
 
-  ghc-options: -rtsopts 
+  ghc-options: -rtsopts -O2
   ghc-prof-options: -prof -auto-all -rtsopts 
   default-language:    Haskell2010
 

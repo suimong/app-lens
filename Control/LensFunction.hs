@@ -27,7 +27,8 @@ unlinesL :: Lens' [String] String
 unlinesL = unliftT unlinesF
 @
 
-The obtained lens works as follows.
+The obtained lens works as expected (here 'Control.Lens.^.', 'Control.Lens.&'
+and 'Control.Lens..~' are taken from "Control.Lens").
 
 >>> ["banana", "orange", "apple"] ^. unlinesL
 "banana\norange\napple\n"
@@ -44,10 +45,10 @@ Actually, insertion or deletion of lines to the view will fail, as below.
 >>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n\n"
 *** Exception: ...
 
-If you want to reflect insertions and deletions, one have to write
-a function of type @L s [String] -> L s String@, which says that
-the list structure itself is updatable. To write a function of this type,
-`liftC` and `liftC2` functions would be sometimes useful. 
+If you want to reflect insertions and deletions, one have to write a
+function of type @L s [String] -> L s String@, which says that the
+list structure itself would be updatable. To write a function of this
+type, 'liftC' and 'liftC2' functions would be sometimes useful.
 
 @
 unlinesF' :: L s [String] -> L s String
