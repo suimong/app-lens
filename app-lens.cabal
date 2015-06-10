@@ -5,21 +5,19 @@ synopsis: applicative (functional) bidirectional programming beyond composition 
 description:
    A bidirectional transformation connects data in difference formats,
    maintaining consistency amid separate updates. The "lens"
-   programming language---with Kmett's Haskell "lens" package being
+   programming language---with Kmett's Haskell lens package being
    one of the most influentials---is a solution to this problem.
    .
-   Many lenses implementations (including Kmett's Haskell library) only
+   Many lens implementations (including Kmett's Haskell library) only
    support the point-free style of programming. Though concise at times,
    this style becomes less handy when programs get more complicated. 
-   . 
+   .  
    This module provides the infrastructure for programming complex
    bidirectional transformations, by representing lenses as functions
    that are subject to the normal applicative-style programming.  For
    example, let us consider the 'unlines' functions and to define a
-   lens version of it. Assuming that we already have a lens
-   @catLineL :: Lens' (String, String) String@ that concatenates two
-   strings with a newline in the middle, in our framework we can
-   program through pattern matching and explicit recursion as usual.
+   lens version of it. In our framework we can program through pattern
+   matching and explicit recursion as in normal functional programming.
    .
    @
    unlinesF :: [L s String] -> L s String
@@ -30,9 +28,11 @@ description:
    .   
    Here, @lift2 :: Lens' (a,b) c -> (forall s. L s a -> L s b -> L s
    c)@ and @new :: a -> (forall s. L s a)@ lift lenses to functions.
-   The former is for binary lenses and the latter is for constant lenses.
-   We can then apply lenses as functions, alleviating
-   the need of specialized combinators. 
+   The former is for binary lenses and the latter is for constant
+   lenses.  We can then apply lenses as functions, alleviating the
+   need of specialized combinators. In the above, we omitted the
+   definition of a primitive lens @catLineL :: Lens' (String, String)
+   String@ that concatenates two strings with a newline in between.   
    .
    Simply unlifting ('unlift', 'unlift2', 'unliftT') such "lens functions"
    gives us the desired lenses. 
@@ -48,18 +48,18 @@ description:
    "banana\norange\napple\n"
    >>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n"
    ["Banana","Orange","Apple"]
-   . 
-   One might have found that @unliftF@ should be defined with 'foldr'.
-   Indeed, we can use 'foldr' as below because @catLineF@ and
-   @unlinesF@ are merely Haskell functions.
+   .   
+   One may prefer to define @unliftF@ with 'foldr'. Indeed, we can
+   use 'foldr' as below because @catLineF@ and @unlinesF@ are simply
+   Haskell functions.
    .
    @
    unliftF = foldr (lift2 catLineL) (new "") 
    @  
-   . 
-   Here, the program is written in a point-free manner as the exiting
-   lens frameworks, but notice that this 'foldr' is just Haskell's
-   'foldr', instead of a combinator on lenses.
+   .
+   Here, the program is written in a point-free manner similar to that
+   of the other lens frameworks. But note that this 'foldr' is just
+   Haskell's 'foldr', instead of a special combinator for lenses.
    .
    More examples can be found at "Examples" in the source code
    <https://bitbucket.org/kztk/app-lens/downloads>.
