@@ -19,12 +19,10 @@ description:
    lens version of it. In our framework we can program through pattern
    matching and explicit recursion as in normal functional programming.
    .
-   @
-   unlinesF :: [L s String] -> L s String
-   unlinesF []     = new ""
-   unlinesF (x:xs) = catLineF x (unlinesF xs)
-      where catLineF = lift2 catLineL
-   @
+   > unlinesF :: [L s String] -> L s String
+   > unlinesF []     = new ""
+   > unlinesF (x:xs) = catLineF x (unlinesF xs)
+   >    where catLineF = lift2 catLineL
    .   
    Here, @lift2 :: Lens' (a,b) c -> (forall s. L s a -> L s b -> L s
    c)@ and @new :: a -> (forall s. L s a)@ lift lenses to functions.
@@ -37,49 +35,44 @@ description:
    Simply unlifting ('unlift', 'unlift2', 'unliftT') such "lens functions"
    gives us the desired lenses. 
    .   
-   @
-   unlinesL :: Lens' [String] String
-   unlinesL = unliftT unlinesF
-   @
+   > unlinesL :: Lens' [String] String
+   > unlinesL = unliftT unlinesF
    .
    The obtained lens works as expected.
+   .
    .
    >>> ["banana", "orange", "apple"] ^. unlinesL
    "banana\norange\napple\n"
    >>> ["banana", "orange", "apple"] & unlinesL .~ "Banana\nOrange\nApple\n"
    ["Banana","Orange","Apple"]
+   .
    .   
    One may prefer to define @unliftF@ with 'foldr'. Indeed, we can
    use 'foldr' as below because @catLineF@ and @unlinesF@ are simply
    Haskell functions.
    .
-   @
-   unliftF = foldr (lift2 catLineL) (new "") 
-   @  
+   > unliftF = foldr (lift2 catLineL) (new "") 
    .
    Here, the program is written in a point-free manner similar to that
    of the other lens frameworks. But note that this 'foldr' is just
    Haskell's 'foldr', instead of a special combinator for lenses.
    .
-   More examples can be found at "Examples" in the source code
+   More examples can be found at \"Examples\" in the source code
    <https://bitbucket.org/kztk/app-lens/downloads>.
-   ==== Remark
+   . 
+   === Remark
    .
    The applicative-style programming is possible in our implementation 
    because a function representation different from Kmett's is used for lenses.
    As a result, when we program record-field access chains such as 
    .
-   @
-   src .^ l1 . l2 
-   src & l1 . l2 .~ tgt' 
-   @
+   > src .^ l1 . l2 
+   > src & l1 . l2 .~ tgt' 
    .
    The order of composition is inverted in our implementation. 
    .
-   @
-   src .^ unlift (lift l2 . lift l1)
-   src & unlift (lift l2 . lift l1) .~ tgt' 
-   @
+   > src .^ unlift (lift l2 . lift l1)
+   > src & unlift (lift l2 . lift l1) .~ tgt' 
    .
    This difference causes slight inconvenience for record updates, but is 
    crucial in allowing the applicative-style lens programming we
@@ -92,7 +85,6 @@ license-file:        LICENSE
 homepage:            https://bitbucket.org/kztk/app-lens
 bug-reports:         https://bitbucket.org/kztk/app-lens/issues
 tested-with:         GHC == 7.8.3
-
 
 author:              Kazutaka Matsuda
 copyright:           (c) Kazutaka Matsuda, 2015
@@ -134,9 +126,6 @@ Library
     mtl        >=2.2   && < 2.3,
     lens       >=4     && < 4.12
 
-  ghc-options: -O2   
-  ghc-prof-options: -prof -auto-all -rtsopts 
-
   default-language: Haskell2010
 
 -- Executable prof
@@ -176,7 +165,7 @@ Benchmark compositions
     cpp-options: -D__USE_VAN_LAARHOVEN__
 
   ghc-options: -rtsopts -O2
-  ghc-prof-options: -prof -auto-all -rtsopts 
+  ghc-prof-options: -prof -rtsopts 
   default-language:    Haskell2010
 
 Benchmark eval
@@ -198,7 +187,7 @@ Benchmark eval
     cpp-options: -D__USE_VAN_LAARHOVEN__
 
   ghc-options: -rtsopts -O2
-  ghc-prof-options: -prof -auto-all -rtsopts 
+  ghc-prof-options: -prof -rtsopts 
   default-language:    Haskell2010
 
 source-repository head
