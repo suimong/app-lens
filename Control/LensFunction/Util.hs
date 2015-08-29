@@ -1,4 +1,5 @@
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Control.LensFunction.Util where
 
