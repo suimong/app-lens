@@ -1,0 +1,7 @@
+flags:
+  app-lens:
+    usevanlaarhoven: false
+packages:
+- '.'
+extra-deps: []
+resolver: lts-3.2
