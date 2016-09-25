@@ -2,7 +2,8 @@
 
 -- Required for sequenceL, if we use var Laarhoven repl.
 {-# LANGUAGE NoMonomorphismRestriction #-}
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE Trustworthy #-}
+
 
 {-|
 This module provides an "applicative" (functional) way of composing
